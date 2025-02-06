@@ -59,6 +59,9 @@ const CreateTimetableEntry = () => {
       axios
         .get(`/api/timetable/locations/${formData.facultyId}`)
         .then((res) => setLocations(res.data));
+    } else {
+      setDepartments([]);
+      setLocations([]);
     }
   }, [formData.facultyId]);
 
@@ -70,6 +73,9 @@ const CreateTimetableEntry = () => {
       axios
         .get(`/api/timetable/teachers/${formData.deptId}`)
         .then((res) => setStaff(res.data));
+    } else {
+      setPrograms([]);
+      setStaff([]);
     }
   }, [formData.deptId]);
 
@@ -78,6 +84,8 @@ const CreateTimetableEntry = () => {
       axios
         .get(`/api/timetable/classes/${formData.programId}`)
         .then((res) => setClasses(res.data));
+    } else {
+      setClasses([]);
     }
   }, [formData.programId]);
 
@@ -92,11 +100,61 @@ const CreateTimetableEntry = () => {
       axios
         .get(`/api/timetable/subjects/${formData.classId}`)
         .then((res) => setSubjects(res.data));
+    } else {
+      setDivisions([]);
+      setBatches([]);
+      setSubjects([]);
     }
   }, [formData.classId]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Reset dependent fields when a higher-level selection changes
+    if (name === "facultyId") {
+      setFormData({
+        ...formData,
+        facultyId: value,
+        deptId: "",
+        programId: "",
+        classId: "",
+        divId: "",
+        subjectId: "",
+        batchId: "",
+        staffId: "",
+        locationId: "",
+      });
+    } else if (name === "deptId") {
+      setFormData({
+        ...formData,
+        deptId: value,
+        programId: "",
+        classId: "",
+        divId: "",
+        subjectId: "",
+        batchId: "",
+        staffId: "",
+      });
+    } else if (name === "programId") {
+      setFormData({
+        ...formData,
+        programId: value,
+        classId: "",
+        divId: "",
+        subjectId: "",
+        batchId: "",
+      });
+    } else if (name === "classId") {
+      setFormData({
+        ...formData,
+        classId: value,
+        divId: "",
+        subjectId: "",
+        batchId: "",
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -111,9 +169,12 @@ const CreateTimetableEntry = () => {
   };
 
   return (
-    <div className="w-full p-6 bg-white shadow-lg rounded-lg">
+    <div className="w-full h-full p-6 bg-white shadow-lg rounded-lg">
       <h2 className="text-2xl font-bold mb-4">Create Timetable Entry</h2>
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"
+      >
         {[
           {
             label: "Academic Year",
@@ -153,10 +214,10 @@ const CreateTimetableEntry = () => {
             </select>
           </div>
         ))}
-        <div className="col-span-2 flex justify-center">
+        <div className="sm:col-span-2 md:col-span-3 flex justify-center items-center w-full">
           <button
             type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded cursor-pointer"
           >
             Submit
           </button>
