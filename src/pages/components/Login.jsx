@@ -4,6 +4,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { AuthContext } from "../../context/AuthContext";
 import universityLogo from "../../assets/Image.png";
+import { ClipLoader } from "react-spinners"; // Import the spinner component
 
 const Login = () => {
   const { login, user } = useContext(AuthContext); // Make sure the user context is available
@@ -123,10 +124,14 @@ const Login = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg cursor-pointer transition duration-300"
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg cursor-pointer transition duration-300 flex items-center justify-center"
             disabled={isLoading} // Disable the button while loading
           >
-            {isLoading ? "Logging in..." : "Login"}
+            {isLoading ? (
+              <ClipLoader color="#ffffff" size={30} /> // Show spinner
+            ) : (
+              "Login"
+            )}
           </button>
         </form>
       </div>

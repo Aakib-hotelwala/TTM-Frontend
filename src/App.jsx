@@ -1,36 +1,61 @@
+import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
-import Login from "./pages/components/Login";
-import AdminHomepage from "./pages/Admin/AdminHomepage";
-import TeacherHomepage from "./pages/Teacher/TeacherHomepage";
-import StudentHomepage from "./pages/Student/StudentHomepage";
-import DeanHomepage from "./pages/Dean/DeanHomepage";
-import HodHomepage from "./pages/HOD/HodHomepage";
-import TtmHomepage from "./pages/TTM/TtmHomepage";
-import ProtectedRoute from "./pages/components/ProtectedRoute"; // Ensure proper implementation
-import CreateTimetableEntry from "./pages/TTM/CreateTimetableEntry";
-import UserManagement from "./pages/Admin/UserManagement";
-import RoleManagement from "./pages/Admin/RoleManagement";
-import StaffManagement from "./pages/Admin/StaffManagement";
-import StudentManagement from "./pages/Admin/StudentManagement";
-import RoleAllocation from "./pages/Admin/RoleAllocation";
-import ViewTimetableDean from "./pages/Dean/ViewTimetable";
-import ViewTimetableHOD from "./pages/HOD/ViewTimetable";
-import ViewTeacherDetailsHOD from "./pages/HOD/ViewTeacherDetails";
-import ViewLocationDetailsHOD from "./pages/HOD/ViewLocationDetails";
-import ManageTimetable from "./pages/TTM/ManageTimetable";
-import AssignSubjectTeacher from "./pages/TTM/AssignSubjectTeacher";
-import ViewTeacherDetailsTTM from "./pages/TTM/ViewTeacherDetails";
-import ViewLocationDetailsTTM from "./pages/TTM/ViewLocationDetails";
-import TeacherTimetable from "./pages/Teacher/TeacherTimetable";
-import ViewTimetableTeacher from "./pages/Teacher/ViewTimetableTeacher";
-import StudentTimetable from "./pages/Student/StudentTimetable";
+import { Login, ProtectedRoute } from "./pages";
+import {
+  AdminHomepage,
+  RoleManagement,
+  UserManagement,
+  StaffManagement,
+  StudentManagement,
+  RoleAllocation,
+} from "./pages/Admin";
+import { DeanHomepage, ViewTimetableDean } from "./pages/Dean";
+import {
+  HodHomepage,
+  ViewTimetableHOD,
+  ViewTeacherDetailsHOD,
+  ViewLocationDetailsHOD,
+} from "./pages/HOD";
+import {
+  TtmHomepage,
+  CreateTimetableEntry,
+  ManageTimetable,
+  AssignSubjectTeacher,
+  ViewTeacherDetailsTTM,
+  ViewLocationDetailsTTM,
+} from "./pages/TTM";
+import {
+  TeacherHomepage,
+  TeacherTimetable,
+  ViewTimetableTeacher,
+} from "./pages/Teacher";
+import { StudentHomepage, StudentTimetable } from "./pages/Student";
 
 const App = () => {
+  const [defaultRoute, setDefaultRoute] = useState("");
+
+  useEffect(() => {
+    const role = localStorage.getItem("role");
+    if (role === "admin") {
+      setDefaultRoute("/admin-homepage/role-management");
+    } else if (role === "teacher") {
+      setDefaultRoute("/teacher-homepage/my-timetable");
+    } else if (role === "student") {
+      setDefaultRoute("/student-homepage/my-timetable");
+    } else if (role === "dean") {
+      setDefaultRoute("/dean-homepage/view-timetable");
+    } else if (role === "hod") {
+      setDefaultRoute("/hod-homepage/view-timetable");
+    } else if (role === "ttm") {
+      setDefaultRoute("/ttm-homepage/timetable-management");
+    }
+  }, []);
+
   return (
     <Router>
       <Routes>
@@ -46,26 +71,33 @@ const App = () => {
             <Route path="staff-management" element={<StaffManagement />} />
             <Route path="student-management" element={<StudentManagement />} />
             <Route path="role-allocation" element={<RoleAllocation />} />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="role-management" />} />
           </Route>
         </Route>
 
-        {/* Other role-based protected routes */}
         <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
           <Route path="/teacher-homepage/" element={<TeacherHomepage />}>
             <Route path="my-timetable" element={<TeacherTimetable />} />
             <Route path="view-timetable" element={<ViewTimetableTeacher />} />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="my-timetable" />} />
           </Route>
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
           <Route path="/student-homepage/" element={<StudentHomepage />}>
             <Route path="my-timetable" element={<StudentTimetable />} />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="my-timetable" />} />
           </Route>
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={["dean"]} />}>
           <Route path="/dean-homepage/" element={<DeanHomepage />}>
             <Route path="view-timetable" element={<ViewTimetableDean />} />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="view-timetable" />} />
           </Route>
         </Route>
 
@@ -80,10 +112,11 @@ const App = () => {
               path="view-location-details"
               element={<ViewLocationDetailsHOD />}
             />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="view-timetable" />} />
           </Route>
         </Route>
 
-        {/* Protected Routes for Timetable Manager */}
         <Route element={<ProtectedRoute allowedRoles={["ttm"]} />}>
           <Route path="/ttm-homepage/" element={<TtmHomepage />}>
             <Route
@@ -103,6 +136,8 @@ const App = () => {
               path="view-location-details"
               element={<ViewLocationDetailsTTM />}
             />
+            {/* Default route (First link) */}
+            <Route path="" element={<Navigate to="timetable-management" />} />
           </Route>
         </Route>
 
