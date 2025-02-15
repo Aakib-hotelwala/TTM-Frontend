@@ -1,7 +1,12 @@
 import React from "react";
+import Timetable from "../components/Timetable";
 
 const ViewTimetableDean = () => {
-  return <div>View Timetable</div>;
+  return (
+    <>
+      <Timetable />
+    </>
+  );
 };
 
 export default ViewTimetableDean;
