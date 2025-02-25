@@ -2,9 +2,9 @@ import { Outlet } from "react-router-dom";
 import Header from "../components/Header";
 import Sidebar from "../components/Sidebar";
 import { FaUserAlt } from "react-icons/fa";
-import { BsPlusSquare } from "react-icons/bs";
 import { IoMdListBox } from "react-icons/io";
 import { FiClipboard, FiMapPin } from "react-icons/fi";
+import { AiOutlineCalendar } from "react-icons/ai";
 
 const TtmHomepage = () => {
   return (
@@ -14,14 +14,14 @@ const TtmHomepage = () => {
         <Sidebar
           links={[
             {
-              label: "Create Timetable Entry",
-              icon: BsPlusSquare,
-              to: "/create-timetable-entry", // This ensures the correct path is passed
-            },
-            {
               label: "Timetable Management",
               icon: IoMdListBox,
               to: "/timetable-management", // This ensures the correct path is passed
+            },
+            {
+              label: "View Timetable",
+              icon: AiOutlineCalendar,
+              to: "/view-timetable", // This ensures the correct path is passed
             },
             {
               label: "Assign Subject-teacher",

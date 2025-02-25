@@ -23,11 +23,11 @@ import {
 } from "./pages/HOD";
 import {
   TtmHomepage,
-  CreateTimetableEntry,
   ManageTimetable,
   AssignSubjectTeacher,
   ViewTeacherDetailsTTM,
   ViewLocationDetailsTTM,
+  ViewTimetableTTM,
 } from "./pages/TTM";
 import {
   TeacherHomepage,
@@ -119,10 +119,7 @@ const App = () => {
 
         <Route element={<ProtectedRoute allowedRoles={["ttm"]} />}>
           <Route path="/ttm-homepage/" element={<TtmHomepage />}>
-            <Route
-              path="create-timetable-entry"
-              element={<CreateTimetableEntry />}
-            />
+            <Route path="view-timetable" element={<ViewTimetableTTM />} />
             <Route path="timetable-management" element={<ManageTimetable />} />
             <Route
               path="assign-subject-teacher"

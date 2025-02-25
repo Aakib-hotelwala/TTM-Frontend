@@ -19,14 +19,28 @@ const DeleteTimetableModal = ({
   onDeleteSuccess,
 }) => {
   const handleDelete = async () => {
+    if (!timetableId) {
+      toast.error("Invalid timetable ID.");
+      return;
+    }
+
     try {
-      await axios.delete(`${API_BASE_URL}/timetable/${timetableId}`);
-      toast.success("Timetable deleted successfully!");
-      onDeleteSuccess(); // Refresh data after deletion
-      onClose();
+      const response = await axios.delete(
+        `${API_BASE_URL}/Timetable/delete/${timetableId}`
+      );
+      if (response.status === 200 || response.status === 204) {
+        toast.success("Timetable deleted successfully!");
+        onDeleteSuccess?.(); // Only call if the function exists
+        onClose();
+      } else {
+        throw new Error("Unexpected response from server.");
+      }
     } catch (error) {
       console.error("Error deleting timetable:", error);
-      toast.error("Failed to delete timetable. Please try again.");
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to delete timetable. Please try again.";
+      toast.error(errorMessage);
     }
   };
 

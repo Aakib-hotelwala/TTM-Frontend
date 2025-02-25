@@ -202,7 +202,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       academicClassId: formData.academicClassId,
       divisionId: formData.divisionId,
       subjectId: formData.subjectId,
-      batchId: isPractical ? formData.batchId : 0,
+      batchId: isPractical ? formData.batchId : null,
       dayId: formData.dayId,
       timeSlotId: formData.timeSlotId,
       staffId: formData.staffId,
@@ -210,8 +210,53 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     };
 
     try {
-      console.log("Sending data:", timetableData);
+      // Conflict checks
+      const [divisionConflict, staffConflict, locationConflict] =
+        await Promise.all([
+          axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
+            divisionId: formData.divisionId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+            ...(isPractical && { batchId: formData.batchId }),
+          }),
+          axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
+            staffId: formData.staffId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+          }),
+          axios.post(`${API_BASE_URL}/Timetable/check-location`, {
+            locationId: formData.locationId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+          }),
+        ]);
 
+      if (divisionConflict.data?.conflict) {
+        toast.error("Division or batch conflict detected!");
+      }
+
+      if (staffConflict.data?.conflict) {
+        toast.error(
+          "Staff conflict detected! This staff member is already scheduled."
+        );
+      }
+
+      if (locationConflict.data?.conflict) {
+        toast.error(
+          "Location conflict detected! This room is already occupied."
+        );
+      }
+
+      // Stop if any conflict is detected
+      if (
+        divisionConflict.data?.conflict ||
+        staffConflict.data?.conflict ||
+        locationConflict.data?.conflict
+      ) {
+        return;
+      }
+
+      // Insert timetable if no conflicts
       const response = await axios.post(
         `${API_BASE_URL}/Timetable/insert`,
         timetableData,
@@ -219,8 +264,6 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
           headers: { "Content-Type": "application/json" },
         }
       );
-
-      console.log("Response:", response);
 
       if (response.status >= 200 && response.status < 300) {
         toast.success("Timetable created successfully!");
@@ -231,16 +274,12 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       console.error("Error during API request:", error);
 
       if (error.response) {
-        console.error("Response data:", error.response.data);
-        console.error("Response status:", error.response.status);
         toast.error(
           error.response.data?.message || "Failed to create timetable."
         );
       } else if (error.request) {
-        console.error("No response received:", error.request);
         toast.error("No response from server.");
       } else {
-        console.error("Error setting up request:", error.message);
         toast.error("Unexpected error occurred.");
       }
     }

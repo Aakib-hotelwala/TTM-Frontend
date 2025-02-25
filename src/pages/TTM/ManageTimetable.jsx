@@ -37,7 +37,6 @@ const ManageTimetable = () => {
   const [timetableToDelete, setTimetableToDelete] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [timetables, setTimetables] = useState([]);
-  const [faculties, setFaculties] = useState([]);
 
   // Fetch timetable data
   const fetchTimetable = async () => {
@@ -47,49 +46,12 @@ const ManageTimetable = () => {
         `${API_BASE_URL}/Timetable/getTimetable?userId=1`
       );
       setTimetables(response.data);
-      console.log(timetables);
+      console.log("Fetched data:", response.data); // ✅ Logs the correct data
     } catch (error) {
       console.error("Error fetching timetable data:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch faculty data
-  const fetchFaculties = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/Academic/Faculties`);
-      setFaculties(response.data);
-    } catch (error) {
-      console.error("Error fetching faculty data:", error);
-    }
-  };
-
-  // Fetch faculty data
-  const fetchDepartments = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/Academic/Faculties`);
-      setFaculties(response.data);
-    } catch (error) {
-      console.error("Error fetching faculty data:", error);
-    }
-  };
-
-  // Fetch both data on component mount
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      await Promise.all([fetchTimetable(), fetchFaculties()]);
-      setLoading(false);
-    };
-
-    fetchData();
-  }, []);
-
-  // Get FacultyName by facultyId
-  const getFacultyName = (facultyId) => {
-    const faculty = faculties.find((f) => f.facultyId === facultyId);
-    return faculty ? faculty.facultyName : "N/A";
   };
 
   const refreshTimetable = () => {
@@ -156,43 +118,45 @@ const ManageTimetable = () => {
 
       {/* Search Filters */}
       <Box display="flex" gap={2} mb={2}>
-        <Autocomplete
-          options={[
-            ...new Set(data.map((item) => item.DayId?.DayName).filter(Boolean)),
-          ]}
-          value={selectedDay}
-          onChange={(event, value) => setSelectedDay(value)}
-          renderInput={(params) => (
-            <TextField {...params} label="Search Day" variant="outlined" />
-          )}
-          sx={{ width: 250 }}
-        />
-        <Autocomplete
-          options={[
-            ...new Set(
-              data.map((item) => item.StaffId?.UserId?.FullName).filter(Boolean)
-            ),
-          ]}
-          value={selectedTeacher}
-          onChange={(event, value) => setSelectedTeacher(value)}
-          renderInput={(params) => (
-            <TextField {...params} label="Search Teacher" variant="outlined" />
-          )}
-          sx={{ width: 250 }}
-        />
-        <Autocomplete
-          options={[
-            ...new Set(
-              data.map((item) => item.LocationId?.LocationName).filter(Boolean)
-            ),
-          ]}
-          value={selectedLocation}
-          onChange={(event, value) => setSelectedLocation(value)}
-          renderInput={(params) => (
-            <TextField {...params} label="Search Location" variant="outlined" />
-          )}
-          sx={{ width: 250 }}
-        />
+        {[
+          {
+            label: "Search Class",
+            value: selectedDay,
+            setter: setSelectedDay,
+            options: [
+              ...new Set(
+                data.map((item) => item.DayId?.DayName).filter(Boolean)
+              ),
+            ],
+          },
+          {
+            label: "Search Teacher",
+            value: selectedTeacher,
+            setter: setSelectedTeacher,
+            options: [
+              ...new Set(data.map((item) => item.FullName).filter(Boolean)),
+            ],
+          },
+          {
+            label: "Search Location",
+            value: selectedLocation,
+            setter: setSelectedLocation,
+            options: [
+              ...new Set(data.map((item) => item.LocationName).filter(Boolean)),
+            ],
+          },
+        ].map(({ label, value, setter, options }) => (
+          <Autocomplete
+            key={label}
+            options={options}
+            value={value}
+            onChange={(event, newValue) => setter(newValue)}
+            renderInput={(params) => (
+              <TextField {...params} label={label} variant="outlined" />
+            )}
+            sx={{ width: 250 }}
+          />
+        ))}
       </Box>
 
       {loading ? (
@@ -233,43 +197,24 @@ const ManageTimetable = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredData.map((item, index) => (
-                <TableRow key={item._id}>
+              {timetables.map((item, index) => (
+                <TableRow key={item.timetableId}>
                   <TableCell>{index + 1}</TableCell>
-                  <TableCell>
-                    {item.AcademicYearId?.AcademicYearCode ||
-                      "No Academic Year"}
-                  </TableCell>
-                  <TableCell>{getFacultyName(item.facultyId)}</TableCell>
-                  <TableCell>
-                    {item.DeptId?.DepartmentName || "No Department"}
-                  </TableCell>
-                  <TableCell>
-                    {item.ProgramId?.ProgramName || "No Program"}
-                  </TableCell>
-                  <TableCell>{item.ClassId?.ClassName || "No Class"}</TableCell>
-                  <TableCell>
-                    {item.DivId?.DivisionName || "No Division"}
-                  </TableCell>
-                  <TableCell>
-                    {item.SubjectId?.SubjectName || "No Subject"}
-                  </TableCell>
-                  <TableCell>{item.BatchId?.BatchName || "No Batch"}</TableCell>
-                  <TableCell>{item.DayId?.DayName || "No Day"}</TableCell>
-                  <TableCell>
-                    {item.TimeSlotId?.SlotName || "No Slot"}
-                  </TableCell>
-                  <TableCell>
-                    {item.StaffId?.Designation && item.StaffId?.UserId?.FullName
-                      ? `${item.StaffId.Designation} ${item.StaffId.UserId.FullName}`
-                      : "No Staff Info"}
-                  </TableCell>
-                  <TableCell>
-                    {item.LocationId?.LocationName || "No Location"}
-                  </TableCell>
+                  <TableCell>{item.academicYearCode || "N/A"}</TableCell>
+                  <TableCell>{item.facultyName || "N/A"}</TableCell>
+                  <TableCell>{item.departmentName || "N/A"}</TableCell>
+                  <TableCell>{item.programName || "N/A"}</TableCell>
+                  <TableCell>{item.academicClassName || "N/A"}</TableCell>
+                  <TableCell>{item.divisionName || "N/A"}</TableCell>
+                  <TableCell>{item.subjectName || "N/A"}</TableCell>
+                  <TableCell>{item.batchName || "N/A"}</TableCell>
+                  <TableCell>{item.dayName || "N/A"}</TableCell>
+                  <TableCell>{item.timeslot || "N/A"}</TableCell>
+                  <TableCell>{item.staffName || "N/A"}</TableCell>
+                  <TableCell>{item.locationName || "N/A"}</TableCell>
                   <TableCell>
                     <IconButton
-                      onClick={() => fetchTimetableById(item._id)}
+                      onClick={() => fetchTimetableById(item.timetableId)}
                       color="primary"
                     >
                       <Edit />
@@ -279,7 +224,7 @@ const ManageTimetable = () => {
                     <IconButton
                       color="error"
                       onClick={() => {
-                        setTimetableToDelete(item._id);
+                        setTimetableToDelete(item.timetableId);
                         setOpenDeleteModal(true);
                       }}
                     >
@@ -293,25 +238,23 @@ const ManageTimetable = () => {
         </TableContainer>
       )}
 
-      {selectedTimetable ? (
+      {/* Modals */}
+      <AddTimetableModal
+        open={openModal && !selectedTimetable}
+        onClose={() => setOpenModal(false)}
+        onSubmit={() => setRefresh((prev) => !prev)}
+      />
+
+      {selectedTimetable && (
         <UpdateTimetableModal
           open={openModal}
           onClose={() => {
             setOpenModal(false);
-            setSelectedTimetable(null); // Reset selection after closing
-            setRefresh((prev) => !prev); // ✅ Ensures re-render
+            setSelectedTimetable(null);
+            setRefresh((prev) => !prev);
           }}
-          onSubmit={() => setRefresh((prev) => !prev)} // ✅ Ensures re-render
-          initialData={selectedTimetable} // Pass selected timetable entry
-        />
-      ) : (
-        <AddTimetableModal
-          open={openModal}
-          onClose={() => {
-            setOpenModal(false);
-            setRefresh((prev) => !prev); // ✅ Ensures re-render
-          }}
-          onSubmit={refreshTimetable} // ✅ Ensures refresh after adding
+          onSubmit={() => setRefresh((prev) => !prev)}
+          initialData={selectedTimetable}
         />
       )}
 
@@ -319,7 +262,7 @@ const ManageTimetable = () => {
         open={openDeleteModal}
         onClose={() => setOpenDeleteModal(false)}
         timetableId={timetableToDelete}
-        onDeleteSuccess={() => setRefresh((prev) => !prev)} // Refresh data on delete
+        onDeleteSuccess={() => setRefresh((prev) => !prev)}
       />
     </div>
   );
