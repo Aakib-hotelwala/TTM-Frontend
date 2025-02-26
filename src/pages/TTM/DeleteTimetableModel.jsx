@@ -56,7 +56,11 @@ const DeleteTimetableModal = ({
         <Button onClick={onClose} color="primary">
           Cancel
         </Button>
-        <Button onClick={handleDelete} variant="contained" color="error">
+        <Button
+          onClick={handleDelete}
+          variant="contained"
+          className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
+        >
           Delete
         </Button>
       </DialogActions>

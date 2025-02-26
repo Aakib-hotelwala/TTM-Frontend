@@ -6,6 +6,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
+  TableSortLabel,
   TableRow,
   Button,
   Box,
@@ -24,18 +25,17 @@ import DeleteTimetableModal from "./DeleteTimetableModel";
 const API_BASE_URL = "https://localhost:7073/api";
 
 const ManageTimetable = () => {
-  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedTimetable, setSelectedTimetable] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedClass, setSelectedClass] = useState(null);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
   const [refresh, setRefresh] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [timetableToDelete, setTimetableToDelete] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [timetables, setTimetables] = useState([]);
 
   // Fetch timetable data
@@ -54,43 +54,86 @@ const ManageTimetable = () => {
     }
   };
 
-  const refreshTimetable = () => {
-    setRefreshKey((prevKey) => prevKey + 1); // Change state to trigger re-fetch
-  };
-
   useEffect(() => {
     fetchTimetable();
   }, [refresh]);
 
-  // Fetch a specific timetable entry by ID
-  const fetchTimetableById = async (id) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/timetable/${id}`);
-      setSelectedTimetable(response.data);
-      setOpenModal(true);
-    } catch (error) {
-      console.error("Error fetching timetable entry:", error);
-    }
-  };
-
   // Handle filtering
   useEffect(() => {
-    let filtered = data;
-    if (selectedDay) {
-      filtered = filtered.filter((item) => item.DayId?.DayName === selectedDay);
+    let filtered = timetables;
+
+    if (selectedClass) {
+      filtered = filtered.filter(
+        (item) =>
+          item.academicClassName?.toLowerCase() === selectedClass.toLowerCase()
+      );
     }
     if (selectedTeacher) {
       filtered = filtered.filter(
-        (item) => item.StaffId?.UserId?.FullName === selectedTeacher
+        (item) =>
+          item.staffName?.toLowerCase() === selectedTeacher.toLowerCase()
       );
     }
     if (selectedLocation) {
       filtered = filtered.filter(
-        (item) => item.LocationId?.LocationName === selectedLocation
+        (item) =>
+          item.locationName?.toLowerCase() === selectedLocation.toLowerCase()
       );
     }
+
     setFilteredData(filtered);
-  }, [selectedDay, selectedTeacher, selectedLocation, data]);
+  }, [selectedClass, selectedTeacher, selectedLocation, timetables]);
+
+  // Autocomplete options
+  const classOptions = [
+    ...new Set(
+      timetables.map((item) => item.academicClassName).filter(Boolean)
+    ),
+  ];
+  const teacherOptions = [
+    ...new Set(timetables.map((item) => item.staffName).filter(Boolean)),
+  ];
+  const locationOptions = [
+    ...new Set(timetables.map((item) => item.locationName).filter(Boolean)),
+  ];
+
+  useEffect(() => {
+    setFilteredData(timetables); // Initialize filteredData with all timetables
+  }, [timetables]);
+
+  // Sorting logic
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+
+    const sortedData = [...filteredData].sort((a, b) => {
+      const aValue = a[key] || "";
+      const bValue = b[key] || "";
+      if (aValue < bValue) return direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    setFilteredData(sortedData);
+  };
+
+  const columns = [
+    { label: "Academic Year", key: "academicYearCode" },
+    { label: "Faculty", key: "facultyName" },
+    { label: "Department", key: "departmentName" },
+    { label: "Program", key: "programName" },
+    { label: "Class", key: "academicClassName" },
+    { label: "Division", key: "divisionName" },
+    { label: "Subject", key: "subjectName" },
+    { label: "Batch", key: "batchName" },
+    { label: "Day", key: "dayName" },
+    { label: "Time Slot", key: "timeslot" },
+    { label: "Teacher", key: "staffName" },
+    { label: "Location", key: "locationName" },
+  ];
 
   return (
     <div>
@@ -117,33 +160,36 @@ const ManageTimetable = () => {
       </Box>
 
       {/* Search Filters */}
-      <Box display="flex" gap={2} mb={2}>
+      <Box display="flex" gap={2} mb={2} alignItems="center">
+        <Button
+          variant="contained"
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+          onClick={() => {
+            setSelectedClass(null);
+            setSelectedTeacher(null);
+            setSelectedLocation(null);
+          }}
+        >
+          Clear Filters
+        </Button>
         {[
           {
             label: "Search Class",
-            value: selectedDay,
-            setter: setSelectedDay,
-            options: [
-              ...new Set(
-                data.map((item) => item.DayId?.DayName).filter(Boolean)
-              ),
-            ],
+            value: selectedClass,
+            setter: setSelectedClass,
+            options: classOptions,
           },
           {
             label: "Search Teacher",
             value: selectedTeacher,
             setter: setSelectedTeacher,
-            options: [
-              ...new Set(data.map((item) => item.FullName).filter(Boolean)),
-            ],
+            options: teacherOptions,
           },
           {
             label: "Search Location",
             value: selectedLocation,
             setter: setSelectedLocation,
-            options: [
-              ...new Set(data.map((item) => item.LocationName).filter(Boolean)),
-            ],
+            options: locationOptions,
           },
         ].map(({ label, value, setter, options }) => (
           <Autocomplete
@@ -173,31 +219,28 @@ const ManageTimetable = () => {
           <Table sx={{ minWidth: 650 }}>
             <TableHead>
               <TableRow>
-                {[
-                  "Sr. No",
-                  "Academic Year",
-                  "Faculty",
-                  "Department",
-                  "Program",
-                  "Class",
-                  "Division",
-                  "Subject",
-                  "Batch",
-                  "Day",
-                  "Time Slot",
-                  "Teacher",
-                  "Location",
-                  "Edit",
-                  "Delete",
-                ].map((col) => (
-                  <TableCell key={col} sx={{ padding: "8px 12px" }}>
-                    {col}
+                <TableCell>Sr. No</TableCell>
+                {columns.map((col) => (
+                  <TableCell key={col.key}>
+                    <TableSortLabel
+                      active={sortConfig.key === col.key}
+                      direction={
+                        sortConfig.key === col.key
+                          ? sortConfig.direction
+                          : "asc"
+                      }
+                      onClick={() => handleSort(col.key)}
+                    >
+                      {col.label}
+                    </TableSortLabel>
                   </TableCell>
                 ))}
+                <TableCell>Edit</TableCell>
+                <TableCell>Delete</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {timetables.map((item, index) => (
+              {filteredData.map((item, index) => (
                 <TableRow key={item.timetableId}>
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{item.academicYearCode || "N/A"}</TableCell>
@@ -214,8 +257,11 @@ const ManageTimetable = () => {
                   <TableCell>{item.locationName || "N/A"}</TableCell>
                   <TableCell>
                     <IconButton
-                      onClick={() => fetchTimetableById(item.timetableId)}
                       color="primary"
+                      onClick={() => {
+                        setSelectedTimetable(item); // Pass the full item (timetable) data
+                        setOpenModal(true);
+                      }}
                     >
                       <Edit />
                     </IconButton>
@@ -250,11 +296,12 @@ const ManageTimetable = () => {
           open={openModal}
           onClose={() => {
             setOpenModal(false);
-            setSelectedTimetable(null);
-            setRefresh((prev) => !prev);
+            setSelectedTimetable(null); // Reset after closing
           }}
           onSubmit={() => setRefresh((prev) => !prev)}
-          initialData={selectedTimetable}
+          timetableId={selectedTimetable.timetableId} // Pass the timetableId
+          initialData={selectedTimetable} // Pass the full timetable data
+          onUpdateSuccess={() => setRefresh((prev) => !prev)}
         />
       )}
 

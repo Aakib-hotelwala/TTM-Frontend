@@ -15,9 +15,6 @@ import toast from "react-hot-toast";
 
 const API_BASE_URL = "https://localhost:7073/api";
 
-// Define cache outside to persist across renders
-const cache = {};
-
 const useFetchData = (endpoint, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,18 +22,11 @@ const useFetchData = (endpoint, dependencies = []) => {
   useEffect(() => {
     if (!endpoint) return;
 
-    if (cache[endpoint]) {
-      setData(cache[endpoint]);
-      return;
-    }
-
     const fetchData = async () => {
       setLoading(true);
       try {
         const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
-        const extractedData = response.data?.data || response.data;
-        cache[endpoint] = extractedData;
-        setData(extractedData);
+        setData(response.data?.data || response.data);
       } catch (error) {
         console.error(`Error fetching ${endpoint}:`, error);
         setData([]);
@@ -50,95 +40,49 @@ const useFetchData = (endpoint, dependencies = []) => {
   return { data, loading };
 };
 
-const UpdateTimetableModal = ({ open, onClose, initialData }) => {
+const UpdateTimetableModal = ({
+  open,
+  onClose,
+  onUpdateSuccess,
+  timetableId,
+}) => {
   const [formData, setFormData] = useState({});
 
+  // Fetch timetable by ID
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        timetableId: initialData._id || "",
-        academicYearId: initialData.AcademicYearId?._id || null,
-        facultyId1: initialData.FacultyId?._id || null,
-        departmentId1: initialData.DeptId?._id || null,
-        programId: initialData.ProgramId?._id || null,
-        academicClassId: initialData.ClassId?._id || null,
-        divisionId: initialData.DivId?._id || null,
-        subjectId: initialData.SubjectId?._id || null,
-        batchId: initialData.BatchId?._id || null,
-        dayId: initialData.DayId?._id || null,
-        timeSlotId: initialData.TimeSlotId?._id || null,
-        staffId: initialData.StaffId?._id || null, // ✅ Ensure staffId is set
-        locationId: initialData.LocationId?._id || null,
-        facultyId2: null,
-        departmentId2: null,
-      });
+    if (!timetableId) return;
 
-      if (initialData.StaffId?._id) {
-        fetchFacultyAndDepartment(initialData.StaffId._id);
+    const fetchTimetableById = async () => {
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/Timetable/getTimetableById?timetableId=${timetableId}`
+        );
+        const timetableData = response.data;
+        setFormData({
+          timetableId: timetableData.timetableId || "",
+          academicYearId: timetableData.academicYearId || null,
+          facultyId1: timetableData.facultyId || null,
+          departmentId1: timetableData.departmentId || null,
+          facultyId2: timetableData.staffFacultyId || null,
+          departmentId2: timetableData.staffDepartmentId || null,
+          programId: timetableData.programId || null,
+          academicClassId: timetableData.academicClassId || null,
+          divisionId: timetableData.divisionId || null,
+          subjectId: timetableData.subjectId || null,
+          batchId: timetableData.batchId || null,
+          dayId: timetableData.dayId || null,
+          timeSlotId: timetableData.timeSlotId || null,
+          staffId: timetableData.staffId || null,
+          locationId: timetableData.locationId || null,
+        });
+      } catch (error) {
+        console.error("Error fetching timetable:", error);
+        toast.error("Failed to fetch timetable details.");
       }
-    }
-  }, [initialData]);
+    };
 
-  const fetchFacultyAndDepartment = async (staffId) => {
-    try {
-      console.log("Fetching staff details for StaffId:", staffId);
-      const response = await axios.get(
-        `${API_BASE_URL}/staffDetails/${staffId}`
-      );
-
-      if (!response.data || !response.data.UserId) {
-        console.error("❌ No UserId found in staff details.");
-        return;
-      }
-
-      const user = response.data.UserId; // Get the user object
-      console.log("✅ Extracted UserId:", user._id);
-
-      const userResponse = await axios.get(`${API_BASE_URL}/user/${user._id}`);
-      console.log("User Details Response:", userResponse.data);
-
-      if (!userResponse.data.FacultyId || !userResponse.data.DeptId) {
-        console.error("❌ Faculty or Department not found.");
-        return;
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        facultyId2: userResponse.data.FacultyId._id,
-        departmentId2: userResponse.data.DeptId._id,
-        staffId: staffId, // ✅ Ensure staffId is updated
-        fullName: userResponse.data.FullName, // ✅ Store FullName
-      }));
-
-      console.log("✅ Faculty:", userResponse.data.FacultyId.FacultyName);
-      console.log("✅ Department:", userResponse.data.DeptId.DepartmentName);
-      console.log("✅ Full Name:", userResponse.data.FullName);
-    } catch (error) {
-      console.error("❌ Error fetching staff details:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (formData.facultyId2) {
-      console.log("Fetching departments2 for facultyId2:", formData.facultyId2);
-    }
-  }, [formData.facultyId2]);
-
-  useEffect(() => {
-    if (initialData?.StaffId?._id) {
-      console.log(
-        "Fetching faculty and department for StaffId:",
-        initialData.StaffId._id
-      );
-      fetchFacultyAndDepartment(initialData.StaffId._id);
-    }
-  }, [initialData]);
-
-  useEffect(() => {
-    if (formData.departmentId2) {
-      console.log("Fetching staff for departmentId2:", formData.departmentId2);
-    }
-  }, [formData.departmentId2]);
+    fetchTimetableById();
+  }, [timetableId]);
 
   // Faculties-1:- Fetch faculties
   const { data: faculties1 } = useFetchData("Academic/Faculties");
@@ -297,68 +241,100 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
   };
 
   const handleUpdate = async () => {
+    const isPractical = selectedSubject?.subjectTypeName === "Practical";
+
+    // Ensure all required fields are filled
     if (
-      !formData.subjectId ||
-      !formData.staffId ||
-      !formData.locationId ||
-      !formData.timeSlotId ||
-      !formData.batchId ||
-      !formData.divisionId ||
-      !formData.programId ||
-      !formData.departmentId1 ||
-      !formData.facultyId1 ||
+      !formData.timetableId ||
       !formData.academicYearId ||
-      !formData.dayId ||
+      !formData.facultyId1 ||
+      !formData.departmentId1 ||
+      !formData.programId ||
       !formData.academicClassId ||
-      !formData.departmentId2 ||
-      !formData.facultyId2
+      !formData.divisionId ||
+      !formData.subjectId ||
+      (isPractical && !formData.batchId) ||
+      !formData.dayId ||
+      !formData.timeSlotId ||
+      !formData.staffId ||
+      !formData.locationId
     ) {
       toast.error("Please fill in all the required fields.");
       return;
     }
 
     const timetableData = {
-      SubjectId: formData.subjectId,
-      StaffId: formData.staffId,
-      LocationId: formData.locationId,
-      TimeSlotId: formData.timeSlotId,
-      BatchId: formData.batchId,
-      DivId: formData.divisionId,
-      ProgramId: formData.programId,
-      DeptId: formData.departmentId1,
-      FacultyId: formData.facultyId1,
-      AcademicYearId: formData.academicYearId,
-      DayId: formData.dayId,
-      ClassId: formData.academicClassId,
-      ActiveStatus: true,
-      Deleted: false,
+      timetableId: formData.timetableId,
+      academicYearId: formData.academicYearId,
+      facultyId: formData.facultyId1,
+      departmentId: formData.departmentId1,
+      programId: formData.programId,
+      academicClassId: formData.academicClassId,
+      divisionId: formData.divisionId,
+      subjectId: formData.subjectId,
+      batchId: isPractical ? formData.batchId : null,
+      dayId: formData.dayId,
+      timeSlotId: formData.timeSlotId,
+      staffId: formData.staffId,
+      locationId: formData.locationId,
     };
 
     try {
-      await axios.put(
-        `${API_BASE_URL}/timetable/${formData.timetableId}`,
-        timetableData
-      );
-      toast.success("Timetable updated successfully!");
+      // Conflict checks
+      const [divisionConflict, staffConflict, locationConflict] =
+        await Promise.all([
+          axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
+            divisionId: formData.divisionId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+            ...(isPractical && { batchId: formData.batchId }),
+          }),
+          axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
+            staffId: formData.staffId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+          }),
+          axios.post(`${API_BASE_URL}/Timetable/check-location`, {
+            locationId: formData.locationId,
+            dayId: formData.dayId,
+            timeSlotId: formData.timeSlotId,
+          }),
+        ]);
 
-      if (typeof onSubmit === "function") {
-        onSubmit(); // ✅ Call the function only if it exists
+      if (divisionConflict.data?.conflict) {
+        toast.error("Division or batch conflict detected!");
       }
 
+      if (staffConflict.data?.conflict) {
+        toast.error(
+          "Staff conflict detected! This staff member is already scheduled."
+        );
+      }
+
+      if (locationConflict.data?.conflict) {
+        toast.error(
+          "Location conflict detected! This room is already occupied."
+        );
+      }
+
+      if (
+        divisionConflict.data?.conflict ||
+        staffConflict.data?.conflict ||
+        locationConflict.data?.conflict
+      ) {
+        return; // Stop if conflicts are found
+      }
+
+      // Proceed with the update if no conflicts
+      await axios.put(`${API_BASE_URL}/Timetable/update`, timetableData);
+      toast.success("Timetable updated successfully!");
+      onUpdateSuccess?.();
       onClose();
     } catch (error) {
+      console.error("Update error:", error.response?.data || error.message);
       toast.error(error.response?.data?.message || "Error updating timetable.");
     }
   };
-
-  useEffect(() => {
-    console.log("staffMembers:", staffMembers);
-    console.log("Selected staffId:", formData.staffId);
-    console.log(
-      "Matching Staff:",
-      staffMembers.find((staff) => staff._id === formData.staffId)
-    );
-  }, [staffMembers, formData.staffId]);
 
   return (
     <Dialog
@@ -376,13 +352,18 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  faculties1?.find((f) => f._id === formData.facultyId1) || null
+                  faculties1?.find(
+                    (f) => f.facultyId === formData.facultyId1
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("facultyId1", newValue ? newValue._id : null)
+                  handleChange(
+                    "facultyId1",
+                    newValue ? newValue.facultyId : null
+                  )
                 }
-                options={faculties2 || []} // ✅ Ensure options is always an array
-                getOptionLabel={(option) => option?.FacultyName || ""}
+                options={faculties1 || []} // ✅ Use faculties1 instead of faculties2
+                getOptionLabel={(option) => option?.facultyName || ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Faculty" />
                 )}
@@ -393,18 +374,22 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  departments1?.find((d) => d._id === formData.departmentId1) ||
-                  null
+                  departments1?.find(
+                    (d) => d.departmentId === formData.departmentId1
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("departmentId1", newValue ? newValue._id : null)
+                  handleChange(
+                    "departmentId1",
+                    newValue ? newValue.departmentId : null
+                  )
                 }
                 options={Array.isArray(departments1) ? departments1 : []} // ✅ Ensure it's always an array
-                getOptionLabel={(option) => option?.DepartmentName ?? ""} // ✅ Handle undefined option safely
+                getOptionLabel={(option) => option?.departmentName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Department" />
                 )}
-                disabled={!formData.facultyId1} // ✅ Ensure it's disabled when no faculty is selected
+                disabled={!formData.facultyId1} // ✅ Disable if no faculty is selected
               />
             </Box>
 
@@ -413,18 +398,21 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
               <Autocomplete
                 value={
                   academicYears?.find(
-                    (a) => a._id === formData.academicYearId
+                    (a) => a.academicYearId === formData.academicYearId
                   ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("academicYearId", newValue ? newValue._id : null)
+                  handleChange(
+                    "academicYearId",
+                    newValue ? newValue.academicYearId : null
+                  )
                 }
-                options={academicYears || []} // ✅ Ensure options is always an array
-                getOptionLabel={(option) => option?.AcademicYearCode || ""}
+                options={Array.isArray(academicYears) ? academicYears : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.academicYearCode ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
-                  <TextField {...params} label="Select AcademicYear" />
+                  <TextField {...params} label="Select Academic Year" />
                 )}
-                disabled={!formData.facultyId1}
+                disabled={!formData.facultyId1} // ✅ Disable if no faculty is selected
               />
             </Box>
 
@@ -432,17 +420,21 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  programs?.find((p) => p._id === formData.programId) || null
+                  programs?.find((p) => p.programId === formData.programId) ||
+                  null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("programId", newValue ? newValue._id : null)
+                  handleChange(
+                    "programId",
+                    newValue ? newValue.programId : null
+                  )
                 }
-                options={programs || []} // ✅ Ensure options is always an array
-                getOptionLabel={(option) => option?.ProgramName || ""}
+                options={Array.isArray(programs) ? programs : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.programName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Program" />
                 )}
-                disabled={!formData.departmentId1}
+                disabled={!formData.departmentId1} // ✅ Disable if no department is selected
               />
             </Box>
 
@@ -450,23 +442,22 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  Array.isArray(classes) &&
-                  classes?.find((c) => c._id === formData.academicClassId)
-                    ? classes.find((c) => c._id === formData.academicClassId)
-                    : null
+                  classes?.find(
+                    (c) => c.academicClassId === formData.academicClassId
+                  ) || null
                 }
                 onChange={(e, newValue) =>
                   handleChange(
                     "academicClassId",
-                    newValue ? newValue._id : null
+                    newValue ? newValue.academicClassId : null
                   )
                 }
-                options={Array.isArray(classes) ? classes : []} // Safely pass an empty array if classes is not an array
-                getOptionLabel={(option) => option?.ClassName || ""}
+                options={Array.isArray(classes) ? classes : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.academicClassName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Class" />
                 )}
-                disabled={!formData.programId}
+                disabled={!formData.programId} // ✅ Disable if no program is selected
               />
             </Box>
 
@@ -474,20 +465,22 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  Array.isArray(divisions) &&
-                  divisions?.find((d) => d._id === formData.divisionId)
-                    ? divisions.find((d) => d._id === formData.divisionId)
-                    : null
+                  divisions?.find(
+                    (d) => d.divisionId === formData.divisionId
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("divisionId", newValue ? newValue._id : null)
+                  handleChange(
+                    "divisionId",
+                    newValue ? newValue.divisionId : null
+                  )
                 }
-                options={Array.isArray(divisions) ? divisions : []} // Safely pass an empty array if divisions is not an array
-                getOptionLabel={(option) => option?.DivisionName || ""}
+                options={Array.isArray(divisions) ? divisions : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.divisionName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Division" />
                 )}
-                disabled={!formData.academicClassId}
+                disabled={!formData.academicClassId} // ✅ Disable if no class is selected
               />
             </Box>
 
@@ -495,53 +488,53 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  Array.isArray(subjects) &&
-                  subjects?.find((s) => s._id === formData.subjectId)
-                    ? subjects.find((s) => s._id === formData.subjectId)
-                    : null
+                  subjects?.find((s) => s.subjectId === formData.subjectId) ||
+                  null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("subjectId", newValue ? newValue._id : null)
+                  handleChange(
+                    "subjectId",
+                    newValue ? newValue.subjectId : null
+                  )
                 }
-                options={Array.isArray(subjects) ? subjects : []} // Safely pass an empty array if subjects is not an array
-                getOptionLabel={(option) => option?.SubjectName || ""}
+                options={Array.isArray(subjects) ? subjects : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.subjectName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Subject" />
                 )}
-                disabled={!formData.academicClassId}
+                disabled={!formData.academicClassId} // ✅ Disable if no class is selected
               />
             </Box>
 
             {/* Batch Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  Array.isArray(batches) &&
-                  batches?.find((b) => b._id === formData.batchId)
-                    ? batches.find((b) => b._id === formData.batchId)
-                    : null
-                }
-                onChange={(e, newValue) =>
-                  handleChange("batchId", newValue ? newValue._id : null)
-                }
-                options={Array.isArray(batches) ? batches : []} // Safely pass an empty array if batches is not an array
-                getOptionLabel={(option) => option?.BatchName || ""}
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Batch" />
-                )}
-                disabled={!formData.divisionId}
-              />
-            </Box>
+            {/* Show Batch Dropdown only if subjectTypeName is "Practical" */}
+            {isBatchEnabled && (
+              <Box marginY={2}>
+                <Autocomplete
+                  value={
+                    batches?.find((b) => b.batchId === formData.batchId) || null
+                  }
+                  onChange={(e, newValue) =>
+                    handleChange("batchId", newValue ? newValue.batchId : null)
+                  }
+                  options={Array.isArray(batches) ? batches : []} // ✅ Ensure it's always an array
+                  getOptionLabel={(option) => option?.batchName ?? ""} // ✅ Use correct property names
+                  renderInput={(params) => (
+                    <TextField {...params} label="Select Batch" />
+                  )}
+                />
+              </Box>
+            )}
 
             {/* Day Dropdown */}
             <Box marginY={2}>
               <Autocomplete
-                value={days?.find((d) => d._id === formData.dayId) || null} // Find the selected day using the _id
-                onChange={(e, newValue) => {
-                  handleChange("dayId", newValue ? newValue._id : null); // Update formData with the selected day _id
-                }}
-                options={days || []} // Ensure days is always an array
-                getOptionLabel={(option) => option?.DayName || ""} // Safely access DayName
+                value={days?.find((d) => d.dayId === formData.dayId) || null}
+                onChange={(e, newValue) =>
+                  handleChange("dayId", newValue ? newValue.dayId : null)
+                }
+                options={days || []} //
+                getOptionLabel={(option) => option?.dayName || ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Day" />
                 )}
@@ -552,20 +545,26 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  timeSlots?.length > 0
-                    ? timeSlots.find((t) => t._id === formData.timeSlotId) ||
-                      null
-                    : null
+                  timeSlots?.find(
+                    (t) => t.timeSlotId === formData.timeSlotId
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("timeSlotId", newValue ? newValue._id : null)
+                  handleChange(
+                    "timeSlotId",
+                    newValue ? newValue.timeSlotId : null
+                  )
                 }
-                options={timeSlots}
-                getOptionLabel={(option) => option?.SlotName || ""} // Correct property used for label
+                options={Array.isArray(timeSlots) ? timeSlots : []} // Ensure it's always an array
+                getOptionLabel={(option) =>
+                  option
+                    ? `${option.timeslot}:- ${option.fromTime}-${option.toTime}`
+                    : ""
+                } // Properly format the label
                 renderInput={(params) => (
                   <TextField {...params} label="Select TimeSlot" />
                 )}
-                disabled={!formData.programId}
+                disabled={!formData.programId} // Disable if no program is selected
               />
             </Box>
 
@@ -573,36 +572,44 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  locations?.length > 0
-                    ? locations.find((l) => l._id === formData.locationId) ||
-                      null
-                    : null
+                  locations?.find(
+                    (l) => l.locationId === formData.locationId
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("locationId", newValue ? newValue._id : null)
+                  handleChange(
+                    "locationId",
+                    newValue ? newValue.locationId : null
+                  )
                 }
-                options={locations}
-                getOptionLabel={(option) => option?.LocationName || ""} // Correct property used for label
+                options={Array.isArray(locations) ? locations : []} // Ensure it's always an array
+                getOptionLabel={(option) => option?.locationName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Location" />
                 )}
-                disabled={!formData.departmentId1}
+                disabled={!formData.departmentId1} // Disable if no department is selected
               />
             </Box>
           </Grid>
 
           {/* Second Column - Selectable Faculty and Department */}
           <Grid item xs={12} md={6}>
+            {/* Faculty Dropdown */}
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  faculties2?.find((f) => f._id === formData.facultyId2) || null
+                  faculties2?.find(
+                    (f) => f.facultyId === formData.facultyId2
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("facultyId2", newValue ? newValue._id : null)
+                  handleChange(
+                    "facultyId2",
+                    newValue ? newValue.facultyId : null
+                  )
                 }
-                options={faculties2 || []}
-                getOptionLabel={(option) => option?.FacultyName || ""}
+                options={faculties2 || []} // ✅ Use faculties2 instead of faculties1
+                getOptionLabel={(option) => option?.facultyName || ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Faculty" />
                 )}
@@ -613,41 +620,41 @@ const UpdateTimetableModal = ({ open, onClose, initialData }) => {
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  departments2?.find((d) => d._id === formData.departmentId2) ||
-                  null
+                  departments2?.find(
+                    (d) => d.departmentId === formData.departmentId2
+                  ) || null
                 }
                 onChange={(e, newValue) =>
-                  handleChange("departmentId2", newValue ? newValue._id : null)
+                  handleChange(
+                    "departmentId2",
+                    newValue ? newValue.departmentId : null
+                  )
                 }
-                options={departments2 || []}
-                getOptionLabel={(option) => option?.DepartmentName || ""}
+                options={Array.isArray(departments2) ? departments2 : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.departmentName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Department" />
                 )}
-                disabled={!formData.facultyId2}
+                disabled={!formData.facultyId2} // ✅ Disable if no faculty is selected
               />
             </Box>
 
             {/* Teacher Dropdown */}
             <Box marginY={2}>
               <Autocomplete
-                options={staffMembers}
-                getOptionLabel={(option) => option.UserId?.FullName || ""} // ✅ Display FullName
                 value={
-                  staffMembers.find(
-                    (staff) => staff._id === formData.staffId
-                  ) || null
-                } // ✅ Pre-select staff
-                onChange={(event, newValue) => {
-                  if (newValue) {
-                    handleChange("staffId", newValue._id);
-                    handleChange("fullName", newValue.UserId?.FullName || ""); // ✅ Store FullName
-                  }
-                }}
+                  staffMembers?.find((s) => s.staffId === formData.staffId) ||
+                  null
+                }
+                onChange={(e, newValue) =>
+                  handleChange("staffId", newValue ? newValue.staffId : null)
+                }
+                options={Array.isArray(staffMembers) ? staffMembers : []} // ✅ Ensure it's always an array
+                getOptionLabel={(option) => option?.fullName ?? ""} // ✅ Use correct property names
                 renderInput={(params) => (
                   <TextField {...params} label="Select Teacher" />
                 )}
-                disabled={!formData.departmentId2}
+                disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
               />
             </Box>
           </Grid>
