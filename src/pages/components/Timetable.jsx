@@ -1,145 +1,195 @@
+// TimetableComponent.jsx
+
 import React from "react";
+import {
+  Container,
+  Typography,
+  Autocomplete,
+  TextField,
+  TableContainer,
+  Paper,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+} from "@mui/material";
 
-const Timetable = () => {
-  const timetableData = [
-    {
-      time: "11:00 AM - 12:00 PM",
-      monday: "Java",
-      tuesday: "Python",
-      wednesday: ".NET",
-      thursday: "SE",
-      friday: "Java",
-      saturday: "Python",
-    },
-    {
-      time: "12:00 PM - 01:00 PM",
-      monday: "CG",
-      tuesday: "SE",
-      wednesday: "Java",
-      thursday: "Python",
-      friday: ".NET",
-      saturday: "CG",
-    },
-    {
-      time: "01:00 PM - 02:00 PM",
-      monday: "SE",
-      tuesday: "Java",
-      wednesday: "CG",
-      thursday: "SE",
-      friday: "Python",
-      saturday: "Java",
-    },
-    {
-      time: "02:00 PM - 02:30 PM",
-      monday: "Recess",
-      tuesday: "Recess",
-      wednesday: "Recess",
-      thursday: "Recess",
-      friday: "Recess",
-      saturday: "Recess",
-    },
-    {
-      time: "02:30 PM - 03:30 PM",
-      monday: "Python",
-      tuesday: "CG",
-      wednesday: "Java",
-      thursday: ".NET",
-      friday: "SE",
-      saturday: "CG",
-    },
-    {
-      time: "03:30 PM - 04:30 PM",
-      monday: ".NET",
-      tuesday: "SE",
-      wednesday: "Python",
-      thursday: "CG",
-      friday: "Java",
-      saturday: "SE",
-    },
-    {
-      time: "04:30 PM - 05:30 PM",
-      monday: "Java",
-      tuesday: ".NET",
-      wednesday: "SE",
-      thursday: "Python",
-      friday: "CG",
-      saturday: "Python",
-    },
-  ];
-
+const Timetable = ({
+  title = "Timetable",
+  programs = [],
+  days = [],
+  timeSlots = [],
+  filteredTimetable = [],
+  selectedProgram,
+  selectedClass,
+  selectedLocation,
+  selectedTeacher,
+  handleProgramChange,
+  handleFilterChange,
+  uniqueValues,
+}) => {
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse table-auto">
-        <thead>
-          <tr className="bg-gray-200 text-center border-b border-gray-400">
-            <th className="py-2 px-4 font-bold border border-gray-400">Time</th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Monday
-            </th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Tuesday
-            </th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Wednesday
-            </th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Thursday
-            </th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Friday
-            </th>
-            <th className="py-2 px-4 font-bold border border-gray-400">
-              Saturday
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {timetableData.map((row, index) => {
-            if (row.time === "02:00 PM - 02:30 PM") {
-              return (
-                <tr
-                  key={index}
-                  className="text-center border-b border-gray-400"
-                >
-                  <td className="py-2 px-4 border border-gray-400">
-                    {row.time}
-                  </td>
-                  <td
-                    colSpan="6"
-                    className="py-2 px-4 border border-gray-400 bg-gray-200 font-bold"
+    <Container>
+      <Typography variant="h4" fontWeight="bold">
+        {title}
+      </Typography>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginBottom: "20px",
+        }}
+      >
+        <Autocomplete
+          sx={{ width: 550 }}
+          options={programs}
+          getOptionLabel={(option) => option.programName || ""}
+          value={selectedProgram}
+          onChange={(e, newValue) => handleProgramChange(newValue)}
+          renderInput={(params) => (
+            <TextField {...params} label="Select Program" fullWidth />
+          )}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: "20px",
+        }}
+      >
+        <Autocomplete
+          sx={{ width: "30%" }}
+          options={uniqueValues("academicClassName")}
+          getOptionLabel={(option) => option || ""}
+          value={selectedClass}
+          onChange={(e, newValue) => handleFilterChange("class", newValue)}
+          renderInput={(params) => (
+            <TextField {...params} label="Select Class" fullWidth />
+          )}
+          disabled={!selectedProgram}
+        />
+
+        <Autocomplete
+          sx={{ width: "30%" }}
+          options={uniqueValues("locationName")}
+          getOptionLabel={(option) => option || ""}
+          value={selectedLocation}
+          onChange={(e, newValue) => handleFilterChange("location", newValue)}
+          renderInput={(params) => (
+            <TextField {...params} label="Select Location" fullWidth />
+          )}
+          disabled={!selectedProgram}
+        />
+
+        <Autocomplete
+          sx={{ width: "30%" }}
+          options={uniqueValues("staffName")}
+          getOptionLabel={(option) => option || ""}
+          value={selectedTeacher}
+          onChange={(e, newValue) => handleFilterChange("teacher", newValue)}
+          renderInput={(params) => (
+            <TextField {...params} label="Select Staff" fullWidth />
+          )}
+          disabled={!selectedProgram}
+        />
+      </div>
+
+      {(selectedClass || selectedLocation || selectedTeacher) &&
+        filteredTimetable.length > 0 && (
+          <TableContainer component={Paper} style={{ marginTop: "30px" }}>
+            <Table
+              size="small"
+              style={{
+                tableLayout: "fixed",
+                width: "100%",
+                borderCollapse: "collapse",
+              }}
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell
+                    style={{
+                      textAlign: "center",
+                      fontWeight: "bold",
+                      width: "150px",
+                      height: "50px",
+                      border: "1px solid #ccc",
+                    }}
                   >
-                    {row.monday}
-                  </td>
-                </tr>
-              );
-            }
-            return (
-              <tr key={index} className="text-center border-b border-gray-400">
-                <td className="py-2 px-4 border border-gray-400">{row.time}</td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.monday}
-                </td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.tuesday}
-                </td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.wednesday}
-                </td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.thursday}
-                </td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.friday}
-                </td>
-                <td className="py-2 px-4 border border-gray-400">
-                  {row.saturday}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                    Time
+                  </TableCell>
+                  {days.map((day) => (
+                    <TableCell
+                      key={day.dayId}
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        width: "150px",
+                        height: "50px",
+                        border: "1px solid #ccc",
+                      }}
+                    >
+                      {day.dayName}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {timeSlots.map((slot) => (
+                  <TableRow key={slot.timeSlotId}>
+                    <TableCell
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        width: "150px",
+                        height: "50px",
+                        border: "1px solid #ccc",
+                      }}
+                    >
+                      {slot.timeslot}
+                    </TableCell>
+                    {days.map((day) => {
+                      const entry = filteredTimetable.find(
+                        (t) =>
+                          t.dayId === day.dayId &&
+                          t.timeSlotId === slot.timeSlotId
+                      );
+                      return (
+                        <TableCell
+                          key={day.dayId}
+                          style={{
+                            textAlign: "center",
+                            width: "150px",
+                            height: "50px",
+                            border: "1px solid #ccc",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {entry ? (
+                            <>
+                              <div>{entry.subjectName}</div>
+                              <div>{entry.staffName}</div>
+                              <div>{entry.locationName}</div>
+                            </>
+                          ) : (
+                            "-"
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+    </Container>
   );
 };
 
