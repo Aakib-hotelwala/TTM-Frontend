@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
 import {
   TextField,
@@ -52,11 +53,32 @@ const useFetchData = (endpoint, dependencies = []) => {
 };
 
 const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
+  const { auth } = useContext(AuthContext); // Get facultyId and departmentId from auth context
   const [persistFields, setPersistFields] = useState({});
+  // Fetch all faculties
+  const { data: allFaculties, loading: facultiesLoading } =
+    useFetchData("Academic/Faculties");
+
+  // Get the user's faculty
+  const faculties1 = allFaculties?.filter(
+    (faculty) => faculty.facultyId === auth?.facultyId
+  );
+
+  // Fetch departments by the user's facultyId
+  const { data: departments1, loading: departmentsLoading } = useFetchData(
+    auth?.facultyId ? `Academic/departments?facultyId=${auth.facultyId}` : null,
+    [auth?.facultyId]
+  );
+
+  // Get the user's department from the filtered departments
+  const userDepartment = departments1?.find(
+    (department) => department.departmentId === auth?.departmentId
+  );
+
   const [formData, setFormData] = useState({
     academicYearId: initialData?.academicYearId || null,
-    facultyId1: initialData?.facultyId1 || null,
-    departmentId1: initialData?.departmentId1 || null,
+    facultyId1: faculties1?.[0]?.facultyId || null,
+    departmentId1: userDepartment?.departmentId || null,
     facultyId2: initialData?.facultyId2 || null,
     departmentId2: initialData?.departmentId2 || null,
     programId: initialData?.programId || null,
@@ -70,16 +92,25 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     locationId: initialData?.locationId || null,
   });
 
-  // Faculties-1:- Fetch faculties
-  const { data: faculties1 } = useFetchData("Academic/Faculties");
+  useEffect(() => {
+    setFormData((prev) => {
+      const newFacultyId = faculties1?.[0]?.facultyId || null;
+      const newDepartmentId = userDepartment?.departmentId || null;
 
-  // Departments-1 Fetch departments based on selected faculty
-  const { data: departments1 } = useFetchData(
-    formData.facultyId1
-      ? `Academic/departments?facultyId=${formData.facultyId1}`
-      : null,
-    [formData.facultyId1]
-  );
+      // Only update if values are different
+      if (
+        prev.facultyId1 !== newFacultyId ||
+        prev.departmentId1 !== newDepartmentId
+      ) {
+        return {
+          ...prev,
+          facultyId1: newFacultyId,
+          departmentId1: newDepartmentId,
+        };
+      }
+      return prev; // no change, so don't trigger re-render
+    });
+  }, [faculties1, userDepartment]);
 
   // Fetch academicYear based on selected faculty
   const { data: academicYears } = useFetchData(
@@ -462,72 +493,43 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       onClose={onClose}
       sx={{ "& .MuiDialog-paper": { width: "80%", maxWidth: "900px" } }}
     >
-      <DialogTitle>
-        {initialData ? "Edit Timetable" : "Add Timetable"}
-      </DialogTitle>
+      <DialogTitle>{"Add Timetable"}</DialogTitle>
 
       <DialogContent>
         <Grid container spacing={3}>
           {/* First Column */}
           <Grid item xs={12} md={6}>
-            {/* Faculty Dropdown */}
+            {/* Faculty Dropdown (pre-selected and disabled) */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
-              <Checkbox
-                checked={persistFields["facultyId1"] || false}
-                onChange={() => handleCheckboxChange("facultyId1")}
-              />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
-                  value={
-                    faculties1?.find(
-                      (f) => f.facultyId === formData.facultyId1
-                    ) || null
-                  }
-                  onChange={(e, newValue) =>
-                    handleChange(
-                      "facultyId1",
-                      newValue ? newValue.facultyId : null
-                    )
-                  }
+                  value={faculties1?.[0] || null} // pre-select user's faculty
                   options={faculties1 || []}
                   getOptionLabel={(option) => option?.facultyName || ""}
                   renderInput={(params) => (
-                    <TextField {...params} label="Select Faculty" fullWidth />
+                    <TextField {...params} label="Faculty" fullWidth disabled />
                   )}
+                  disabled // keep dropdown disabled
                 />
               </Box>
             </Box>
 
-            {/* Department Dropdown */}
+            {/* Department Dropdown (pre-selected and disabled) */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
-              <Checkbox
-                checked={persistFields["departmentId1"] || false}
-                onChange={() => handleCheckboxChange("departmentId1")}
-                disabled={!persistFields["facultyId1"]} // Disable if parent unchecked
-              />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
-                  value={
-                    departments1?.find(
-                      (d) => d.departmentId === formData.departmentId1
-                    ) || null
-                  }
-                  onChange={(e, newValue) =>
-                    handleChange(
-                      "departmentId1",
-                      newValue ? newValue.departmentId : null
-                    )
-                  }
+                  value={userDepartment || null} // pre-select user's department
                   options={departments1 || []}
                   getOptionLabel={(option) => option?.departmentName || ""}
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Select Department"
+                      label="Department"
                       fullWidth
+                      disabled
                     />
                   )}
-                  disabled={!formData.facultyId1}
+                  disabled // keep dropdown disabled
                 />
               </Box>
             </Box>
@@ -537,7 +539,6 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               <Checkbox
                 checked={persistFields["academicYearId"] || false}
                 onChange={() => handleCheckboxChange("academicYearId")}
-                disabled={!persistFields["facultyId1"]}
               />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
@@ -571,7 +572,6 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               <Checkbox
                 checked={persistFields["programId"] || false}
                 onChange={() => handleCheckboxChange("programId")}
-                disabled={!persistFields["departmentId1"]}
               />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
@@ -713,7 +713,10 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                 </Box>
               </Box>
             )}
+          </Grid>
 
+          {/* Second Column - Selectable Faculty and Department */}
+          <Grid item xs={12} md={6}>
             {/* Day Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
@@ -774,7 +777,6 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               <Checkbox
                 checked={persistFields["locationId"] || false}
                 onChange={() => handleCheckboxChange("locationId")}
-                disabled={!persistFields["timeSlotId"]}
               />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
@@ -798,95 +800,103 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                 />
               </Box>
             </Box>
-          </Grid>
-
-          {/* Second Column - Selectable Faculty and Department */}
-          <Grid item xs={12} md={6}>
-            {/* Faculty Dropdown */}
-            <Box display="flex" alignItems="center" marginY={2} width="100%">
-              <Checkbox
-                checked={persistFields["facultyId2"] || false}
-                onChange={() => handleCheckboxChange("facultyId2")}
-              />
-              <Box flexGrow={1} marginRight={1}>
-                <Autocomplete
-                  value={
-                    faculties2?.find(
-                      (f) => f.facultyId === formData.facultyId2
-                    ) || null
-                  }
-                  onChange={(e, newValue) =>
-                    handleChange(
-                      "facultyId2",
-                      newValue ? newValue.facultyId : null
-                    )
-                  }
-                  options={faculties2 || []}
-                  getOptionLabel={(option) => option?.facultyName || ""}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Select Faculty" fullWidth />
-                  )}
+            <Box
+              border={1}
+              borderColor="grey.400"
+              borderRadius={2}
+              padding={2}
+              marginY={2}
+            >
+              {/* Faculty Dropdown */}
+              <Box display="flex" alignItems="center" marginY={2} width="100%">
+                <Checkbox
+                  checked={persistFields["facultyId2"] || false}
+                  onChange={() => handleCheckboxChange("facultyId2")}
                 />
+                <Box flexGrow={1} marginRight={1}>
+                  <Autocomplete
+                    value={
+                      faculties2?.find(
+                        (f) => f.facultyId === formData.facultyId2
+                      ) || null
+                    }
+                    onChange={(e, newValue) =>
+                      handleChange(
+                        "facultyId2",
+                        newValue ? newValue.facultyId : null
+                      )
+                    }
+                    options={faculties2 || []}
+                    getOptionLabel={(option) => option?.facultyName || ""}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Select Faculty" fullWidth />
+                    )}
+                  />
+                </Box>
               </Box>
-            </Box>
 
-            {/* Department Dropdown */}
-            <Box display="flex" alignItems="center" marginY={2} width="100%">
-              <Checkbox
-                checked={persistFields["departmentId2"] || false}
-                onChange={() => handleCheckboxChange("departmentId2")}
-                disabled={!persistFields["facultyId2"]}
-              />
-              <Box flexGrow={1} marginRight={1}>
-                <Autocomplete
-                  value={
-                    departments2?.find(
-                      (d) => d.departmentId === formData.departmentId2
-                    ) || null
-                  }
-                  onChange={(e, newValue) =>
-                    handleChange(
-                      "departmentId2",
-                      newValue ? newValue.departmentId : null
-                    )
-                  }
-                  options={Array.isArray(departments2) ? departments2 : []}
-                  getOptionLabel={(option) => option?.departmentName ?? ""}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Select Department"
-                      fullWidth
-                    />
-                  )}
-                  disabled={!formData.facultyId2} // ✅ Disable if no faculty is selected
+              {/* Department Dropdown */}
+              <Box display="flex" alignItems="center" marginY={2} width="100%">
+                <Checkbox
+                  checked={persistFields["departmentId2"] || false}
+                  onChange={() => handleCheckboxChange("departmentId2")}
+                  disabled={!persistFields["facultyId2"]}
                 />
+                <Box flexGrow={1} marginRight={1}>
+                  <Autocomplete
+                    value={
+                      departments2?.find(
+                        (d) => d.departmentId === formData.departmentId2
+                      ) || null
+                    }
+                    onChange={(e, newValue) =>
+                      handleChange(
+                        "departmentId2",
+                        newValue ? newValue.departmentId : null
+                      )
+                    }
+                    options={Array.isArray(departments2) ? departments2 : []}
+                    getOptionLabel={(option) => option?.departmentName ?? ""}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Select Department"
+                        fullWidth
+                      />
+                    )}
+                    disabled={!formData.facultyId2} // ✅ Disable if no faculty is selected
+                  />
+                </Box>
               </Box>
-            </Box>
 
-            {/* Teacher Dropdown */}
-            <Box display="flex" alignItems="center" marginY={2} width="100%">
-              <Checkbox
-                checked={persistFields["staffId"] || false}
-                onChange={() => handleCheckboxChange("staffId")}
-                disabled={!persistFields["departmentId2"]}
-              />
-              <Box flexGrow={1} marginRight={1}>
-                <Autocomplete
-                  value={
-                    staffMembers?.find((s) => s.staffId === formData.staffId) ||
-                    null
-                  }
-                  onChange={(e, newValue) =>
-                    handleChange("staffId", newValue ? newValue.staffId : null)
-                  }
-                  options={Array.isArray(staffMembers) ? staffMembers : []}
-                  getOptionLabel={(option) => option?.fullName ?? ""}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Select Teacher" fullWidth />
-                  )}
-                  disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
+              {/* Teacher Dropdown */}
+              <Box display="flex" alignItems="center" marginY={2} width="100%">
+                <Checkbox
+                  checked={persistFields["staffId"] || false}
+                  onChange={() => handleCheckboxChange("staffId")}
+                  disabled={!persistFields["departmentId2"]}
                 />
+                <Box flexGrow={1} marginRight={1}>
+                  <Autocomplete
+                    value={
+                      staffMembers?.find(
+                        (s) => s.staffId === formData.staffId
+                      ) || null
+                    }
+                    onChange={(e, newValue) =>
+                      handleChange(
+                        "staffId",
+                        newValue ? newValue.staffId : null
+                      )
+                    }
+                    options={Array.isArray(staffMembers) ? staffMembers : []}
+                    getOptionLabel={(option) => option?.fullName ?? ""}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Select Teacher" fullWidth />
+                    )}
+                    disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
+                  />
+                </Box>
               </Box>
             </Box>
           </Grid>

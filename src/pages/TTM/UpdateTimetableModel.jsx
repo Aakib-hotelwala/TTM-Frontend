@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 import axios from "axios";
 import {
   TextField,
@@ -47,6 +48,7 @@ const UpdateTimetableModal = ({
   timetableId,
 }) => {
   const [formData, setFormData] = useState({});
+  const { auth } = useContext(AuthContext); // Get facultyId and departmentId from auth context
 
   // Fetch timetable by ID
   useEffect(() => {
@@ -84,15 +86,26 @@ const UpdateTimetableModal = ({
     fetchTimetableById();
   }, [timetableId]);
 
-  // Faculties-1:- Fetch faculties
-  const { data: faculties1 } = useFetchData("Academic/Faculties");
+  // Fetch all faculties
+  const { data: allFaculties, loading: facultiesLoading } =
+    useFetchData("Academic/Faculties");
 
-  // Departments-1 Fetch departments based on selected faculty
-  const { data: departments1 } = useFetchData(
+  // Filter user's faculty
+  const faculties1 = allFaculties?.filter(
+    (faculty) => faculty.facultyId === auth?.facultyId
+  );
+
+  // Fetch departments based on the user's facultyId
+  const { data: departments1, loading: departmentsLoading } = useFetchData(
     formData.facultyId1
       ? `Academic/departments?facultyId=${formData.facultyId1}`
       : null,
     [formData.facultyId1]
+  );
+
+  // Find user's department
+  const userDepartment = departments1?.find(
+    (department) => department.departmentId === auth?.departmentId
   );
 
   // Fetch academicYear based on selected faculty
@@ -348,49 +361,39 @@ const UpdateTimetableModal = ({
         <Grid container spacing={3}>
           {/* First Column */}
           <Grid item xs={12} md={6}>
-            {/* Faculty Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  faculties1?.find(
-                    (f) => f.facultyId === formData.facultyId1
-                  ) || null
-                }
-                onChange={(e, newValue) =>
-                  handleChange(
-                    "facultyId1",
-                    newValue ? newValue.facultyId : null
-                  )
-                }
-                options={faculties1 || []} // ✅ Use faculties1 instead of faculties2
-                getOptionLabel={(option) => option?.facultyName || ""} // ✅ Use correct property names
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Faculty" />
-                )}
-              />
+            {/* Faculty Dropdown (pre-selected and disabled) */}
+            <Box display="flex" alignItems="center" marginY={2} width="100%">
+              <Box flexGrow={1} marginRight={1}>
+                <Autocomplete
+                  value={faculties1?.[0] || null} // pre-select user's faculty
+                  options={faculties1 || []}
+                  getOptionLabel={(option) => option?.facultyName || ""}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Faculty" fullWidth disabled />
+                  )}
+                  disabled // keep dropdown disabled
+                />
+              </Box>
             </Box>
 
-            {/* Department Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  departments1?.find(
-                    (d) => d.departmentId === formData.departmentId1
-                  ) || null
-                }
-                onChange={(e, newValue) =>
-                  handleChange(
-                    "departmentId1",
-                    newValue ? newValue.departmentId : null
-                  )
-                }
-                options={Array.isArray(departments1) ? departments1 : []} // ✅ Ensure it's always an array
-                getOptionLabel={(option) => option?.departmentName ?? ""} // ✅ Use correct property names
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Department" />
-                )}
-                disabled={!formData.facultyId1} // ✅ Disable if no faculty is selected
-              />
+            {/* Department Dropdown (pre-selected and disabled) */}
+            <Box display="flex" alignItems="center" marginY={2} width="100%">
+              <Box flexGrow={1} marginRight={1}>
+                <Autocomplete
+                  value={userDepartment || null} // pre-select user's department
+                  options={departments1 || []}
+                  getOptionLabel={(option) => option?.departmentName || ""}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Department"
+                      fullWidth
+                      disabled
+                    />
+                  )}
+                  disabled // keep dropdown disabled
+                />
+              </Box>
             </Box>
 
             {/* Academic Year Dropdown */}
@@ -525,7 +528,10 @@ const UpdateTimetableModal = ({
                 />
               </Box>
             )}
+          </Grid>
 
+          {/* Second Column - Selectable Faculty and Department */}
+          <Grid item xs={12} md={6}>
             {/* Day Dropdown */}
             <Box marginY={2}>
               <Autocomplete
@@ -590,72 +596,77 @@ const UpdateTimetableModal = ({
                 disabled={!formData.departmentId1} // Disable if no department is selected
               />
             </Box>
-          </Grid>
 
-          {/* Second Column - Selectable Faculty and Department */}
-          <Grid item xs={12} md={6}>
-            {/* Faculty Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  faculties2?.find(
-                    (f) => f.facultyId === formData.facultyId2
-                  ) || null
-                }
-                onChange={(e, newValue) =>
-                  handleChange(
-                    "facultyId2",
-                    newValue ? newValue.facultyId : null
-                  )
-                }
-                options={faculties2 || []} // ✅ Use faculties2 instead of faculties1
-                getOptionLabel={(option) => option?.facultyName || ""} // ✅ Use correct property names
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Faculty" />
-                )}
-              />
-            </Box>
+            <Box
+              border={1}
+              borderColor="grey.400"
+              borderRadius={2}
+              padding={2}
+              marginY={2}
+            >
+              {/* Faculty Dropdown */}
+              <Box marginY={2}>
+                <Autocomplete
+                  value={
+                    faculties2?.find(
+                      (f) => f.facultyId === formData.facultyId2
+                    ) || null
+                  }
+                  onChange={(e, newValue) =>
+                    handleChange(
+                      "facultyId2",
+                      newValue ? newValue.facultyId : null
+                    )
+                  }
+                  options={faculties2 || []} // ✅ Use faculties2 instead of faculties1
+                  getOptionLabel={(option) => option?.facultyName || ""} // ✅ Use correct property names
+                  renderInput={(params) => (
+                    <TextField {...params} label="Select Faculty" />
+                  )}
+                />
+              </Box>
 
-            {/* Department Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  departments2?.find(
-                    (d) => d.departmentId === formData.departmentId2
-                  ) || null
-                }
-                onChange={(e, newValue) =>
-                  handleChange(
-                    "departmentId2",
-                    newValue ? newValue.departmentId : null
-                  )
-                }
-                options={Array.isArray(departments2) ? departments2 : []} // ✅ Ensure it's always an array
-                getOptionLabel={(option) => option?.departmentName ?? ""} // ✅ Use correct property names
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Department" />
-                )}
-                disabled={!formData.facultyId2} // ✅ Disable if no faculty is selected
-              />
-            </Box>
+              {/* Department Dropdown */}
+              <Box marginY={2}>
+                <Autocomplete
+                  value={
+                    departments2?.find(
+                      (d) => d.departmentId === formData.departmentId2
+                    ) || null
+                  }
+                  onChange={(e, newValue) =>
+                    handleChange(
+                      "departmentId2",
+                      newValue ? newValue.departmentId : null
+                    )
+                  }
+                  options={Array.isArray(departments2) ? departments2 : []} // ✅ Ensure it's always an array
+                  getOptionLabel={(option) => option?.departmentName ?? ""} // ✅ Use correct property names
+                  renderInput={(params) => (
+                    <TextField {...params} label="Select Department" />
+                  )}
+                  disabled={!formData.facultyId2} // ✅ Disable if no faculty is selected
+                />
+              </Box>
 
-            {/* Teacher Dropdown */}
-            <Box marginY={2}>
-              <Autocomplete
-                value={
-                  staffMembers?.find((s) => s.staffId === formData.staffId) ||
-                  null
-                }
-                onChange={(e, newValue) =>
-                  handleChange("staffId", newValue ? newValue.staffId : null)
-                }
-                options={Array.isArray(staffMembers) ? staffMembers : []} // ✅ Ensure it's always an array
-                getOptionLabel={(option) => option?.fullName ?? ""} // ✅ Use correct property names
-                renderInput={(params) => (
-                  <TextField {...params} label="Select Teacher" />
-                )}
-                disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
-              />
+              {/* Teacher Dropdown */}
+              <Box marginY={2}>
+                <Autocomplete
+                  value={
+                    staffMembers?.find((s) => s.staffId === formData.staffId) ||
+                    null
+                  }
+                  onChange={(e, newValue) =>
+                    handleChange("staffId", newValue ? newValue.staffId : null)
+                  }
+                  options={Array.isArray(staffMembers) ? staffMembers : []} // ✅ Ensure it's always an array
+                  getOptionLabel={(option) => option?.fullName ?? ""} // ✅ Use correct property names
+                  renderInput={(params) => (
+                    <TextField {...params} label="Select Teacher" />
+                  )}
+                  disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
+                />
+              </Box>
             </Box>
           </Grid>
         </Grid>

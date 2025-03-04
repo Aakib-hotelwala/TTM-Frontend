@@ -92,7 +92,7 @@ const Timetable = ({
           value={selectedTeacher}
           onChange={(e, newValue) => handleFilterChange("teacher", newValue)}
           renderInput={(params) => (
-            <TextField {...params} label="Select Staff" fullWidth />
+            <TextField {...params} label="Select Teacher" fullWidth />
           )}
           disabled={!selectedProgram}
         />
@@ -150,7 +150,7 @@ const Timetable = ({
                         border: "1px solid #ccc",
                       }}
                     >
-                      {slot.timeslot}
+                      {slot.fromTime} - {slot.toTime}
                     </TableCell>
                     {days.map((day) => {
                       const entry = filteredTimetable.find(

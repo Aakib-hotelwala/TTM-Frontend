@@ -7,79 +7,78 @@ import universityLogo from "../../assets/Image.png";
 import { ClipLoader } from "react-spinners"; // Import the spinner component
 
 const Login = () => {
-  const { login, user } = useContext(AuthContext); // Make sure the user context is available
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
 
-  // If the user is already logged in, redirect them to the homepage
-  useEffect(() => {
-    if (user) {
-      navigate(`/${user.role}-homepage`, { replace: true });
-    }
-  }, [user, navigate]);
+  // Role mapping for navigation
+  const roleMap = {
+    1: "admin",
+    2: "dean",
+    3: "hod",
+    4: "ttm", // Highest priority
+    5: "teacher",
+    6: "student",
+  };
+
+  // Define role priority order
+  const rolePriority = [4, 1, 2, 3, 5, 6];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true); // Set loading state to true
+    setIsLoading(true);
 
     try {
-      // Simulate the API login request
       const response = await axios.post(
-        "https://reqres.in/api/login",
+        "https://localhost:7073/api/Auth/login",
         credentials,
-        {
-          headers: { "Content-Type": "application/json" },
-        }
+        { headers: { "Content-Type": "application/json" } }
       );
 
-      const token = response.data.token;
-      const role = "ttm";
-      const id = 1;
+      const { token, userId, facultyId, departmentId, roleIds } = response.data;
+
+      // Find the highest-priority role the user has
+      const prioritizedRoleId = rolePriority.find((roleId) =>
+        roleIds.includes(roleId)
+      );
+
+      if (!prioritizedRoleId) {
+        toast.error("You are not authorized to access this platform.");
+        setIsLoading(false);
+        return;
+      }
+
+      const role = roleMap[prioritizedRoleId];
+
+      // Save user data to AuthContext
+      login({
+        token,
+        userId,
+        facultyId,
+        departmentId,
+        roleIds,
+        role,
+      });
 
       toast.success("Login successful!");
 
-      login(token, role, id);
-
-      // Reset credentials after successful login
+      // Reset form fields
       setCredentials({ email: "", password: "" });
 
-      // Redirect based on the role
-      switch (role) {
-        case "student":
-          navigate(`/student-homepage/`, { replace: true });
-          break;
-        case "teacher":
-          navigate(`/teacher-homepage/`, { replace: true });
-          break;
-        case "admin":
-          navigate(`/admin-homepage/`, { replace: true });
-          break;
-        case "dean":
-          navigate(`/dean-homepage/`, { replace: true });
-          break;
-        case "hod":
-          navigate(`/hod-homepage/`, { replace: true });
-          break;
-        case "ttm":
-          navigate(`/ttm-homepage/`, { replace: true });
-          break;
-        default:
-          navigate("/login");
-          break;
-      }
+      // Redirect to role-based homepage
+      navigate(`/${role}-homepage`, { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       toast.error(error.response?.data?.message || "Login failed");
     } finally {
-      setIsLoading(false); // Set loading state to false after API call
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-900 bg-opacity-80">
       <div className="bg-white/5 backdrop-blur-2xl shadow-xl rounded-xl p-8 w-full max-w-md border border-white/10">
-        {/* University Logo */}
         <div className="flex justify-center mb-6">
           <img
             src={universityLogo}
@@ -87,7 +86,6 @@ const Login = () => {
             className="w-30 h-30 object-contain filter invert"
           />
         </div>
-
         <h2 className="text-3xl font-bold text-center mb-6 text-white">
           Login
         </h2>
@@ -125,13 +123,9 @@ const Login = () => {
           <button
             type="submit"
             className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg cursor-pointer transition duration-300 flex items-center justify-center"
-            disabled={isLoading} // Disable the button while loading
+            disabled={isLoading}
           >
-            {isLoading ? (
-              <ClipLoader color="#ffffff" size={30} /> // Show spinner
-            ) : (
-              "Login"
-            )}
+            {isLoading ? <ClipLoader color="#ffffff" size={30} /> : "Login"}
           </button>
         </form>
       </div>

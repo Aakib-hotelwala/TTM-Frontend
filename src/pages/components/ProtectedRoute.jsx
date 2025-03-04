@@ -15,17 +15,14 @@ const roleBasedRedirects = {
 const ProtectedRoute = ({ allowedRoles }) => {
   const { auth } = useContext(AuthContext);
 
-  // If the user is not authenticated, redirect to login
-  if (!auth.token) {
+  if (!auth?.token) {
     return <Navigate to="/login" replace />;
   }
 
-  // If the user is authenticated but doesn't have access, redirect to their homepage
   if (!allowedRoles.includes(auth.role)) {
-    return <Navigate to={roleBasedRedirects[auth.role] || "/login"} replace />;
+    return <Navigate to={`/${auth.role}-homepage`} replace />;
   }
 
-  // If authenticated and role is allowed, render the Outlet (nested route)
   return <Outlet />;
 };
 

@@ -3,27 +3,25 @@ import React, { createContext, useState, useEffect } from "react";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState({
-    token: localStorage.getItem("token") || null,
-    role: localStorage.getItem("role") || null,
+  const [auth, setAuth] = useState(() => {
+    const storedAuth = localStorage.getItem("auth");
+    return storedAuth ? JSON.parse(storedAuth) : null;
   });
 
   useEffect(() => {
-    if (auth.token) {
-      localStorage.setItem("token", auth.token);
-      localStorage.setItem("role", auth.role);
+    if (auth) {
+      localStorage.setItem("auth", JSON.stringify(auth));
     } else {
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
+      localStorage.removeItem("auth");
     }
   }, [auth]);
 
-  const login = (token, role) => {
-    setAuth({ token, role });
+  const login = (data) => {
+    setAuth(data);
   };
 
   const logout = () => {
-    setAuth({ token: null, role: null });
+    setAuth(null);
   };
 
   return (

@@ -127,8 +127,8 @@ const ManageTimetable = () => {
     { label: "Program", key: "programName" },
     { label: "Class", key: "academicClassName" },
     { label: "Division", key: "divisionName" },
-    { label: "Subject", key: "subjectName" },
     { label: "Batch", key: "batchName" },
+    { label: "Subject", key: "subjectName" },
     { label: "Day", key: "dayName" },
     { label: "Time Slot", key: "timeslot" },
     { label: "Teacher", key: "staffName" },
@@ -249,8 +249,8 @@ const ManageTimetable = () => {
                   <TableCell>{item.programName || "N/A"}</TableCell>
                   <TableCell>{item.academicClassName || "N/A"}</TableCell>
                   <TableCell>{item.divisionName || "N/A"}</TableCell>
-                  <TableCell>{item.subjectName || "N/A"}</TableCell>
                   <TableCell>{item.batchName || "N/A"}</TableCell>
+                  <TableCell>{item.subjectName || "N/A"}</TableCell>
                   <TableCell>{item.dayName || "N/A"}</TableCell>
                   <TableCell>{item.timeslot || "N/A"}</TableCell>
                   <TableCell>{item.staffName || "N/A"}</TableCell>
