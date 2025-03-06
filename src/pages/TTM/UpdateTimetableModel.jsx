@@ -256,7 +256,6 @@ const UpdateTimetableModal = ({
   const handleUpdate = async () => {
     const isPractical = selectedSubject?.subjectTypeName === "Practical";
 
-    // Ensure all required fields are filled
     if (
       !formData.timetableId ||
       !formData.academicYearId ||
@@ -293,49 +292,67 @@ const UpdateTimetableModal = ({
     };
 
     try {
-      // Conflict checks
+      // Conflict checks, excluding the current timetable entry
       const [divisionConflict, staffConflict, locationConflict] =
         await Promise.all([
           axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
+            timetableId: formData.timetableId,
             divisionId: formData.divisionId,
             dayId: formData.dayId,
             timeSlotId: formData.timeSlotId,
             ...(isPractical && { batchId: formData.batchId }),
           }),
           axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
+            timetableId: formData.timetableId,
             staffId: formData.staffId,
             dayId: formData.dayId,
             timeSlotId: formData.timeSlotId,
           }),
           axios.post(`${API_BASE_URL}/Timetable/check-location`, {
+            timetableId: formData.timetableId,
             locationId: formData.locationId,
             dayId: formData.dayId,
             timeSlotId: formData.timeSlotId,
           }),
         ]);
 
-      if (divisionConflict.data?.conflict) {
+      if (
+        divisionConflict.data?.conflict &&
+        divisionConflict.data?.conflictingTimetableId !== formData.timetableId
+      ) {
         toast.error("Division or batch conflict detected!");
       }
 
-      if (staffConflict.data?.conflict) {
+      if (
+        staffConflict.data?.conflict &&
+        staffConflict.data?.conflictingTimetableId !== formData.timetableId
+      ) {
         toast.error(
           "Staff conflict detected! This staff member is already scheduled."
         );
       }
 
-      if (locationConflict.data?.conflict) {
+      if (
+        locationConflict.data?.conflict &&
+        locationConflict.data?.conflictingTimetableId !== formData.timetableId
+      ) {
         toast.error(
           "Location conflict detected! This room is already occupied."
         );
       }
 
       if (
-        divisionConflict.data?.conflict ||
-        staffConflict.data?.conflict ||
-        locationConflict.data?.conflict
+        (divisionConflict.data?.conflict &&
+          divisionConflict.data?.conflictingTimetableId !==
+            formData.timetableId) ||
+        (staffConflict.data?.conflict &&
+          staffConflict.data?.conflictingTimetableId !==
+            formData.timetableId) ||
+        (locationConflict.data?.conflict &&
+          locationConflict.data?.conflictingTimetableId !==
+            formData.timetableId)
       ) {
-        return; // Stop if conflicts are found
+        return; // Stop if conflicts are found (excluding self)
       }
 
       // Proceed with the update if no conflicts

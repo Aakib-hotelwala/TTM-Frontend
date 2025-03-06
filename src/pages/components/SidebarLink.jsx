@@ -2,9 +2,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 
+// SidebarLink component — used to render sidebar links dynamically based on user roles
 const SidebarLink = ({ to, icon: Icon, label, isCollapsed }) => {
   const navigate = useNavigate();
-  const { auth } = useContext(AuthContext); // Get the current role from AuthContext
+  const { auth } = useContext(AuthContext); // Access user's role from AuthContext
   const location = useLocation(); // Access current route
 
   // Determine the base path based on the user's role

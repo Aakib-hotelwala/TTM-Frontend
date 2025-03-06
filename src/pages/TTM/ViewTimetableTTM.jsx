@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import Timetable from "../components/Timetable";
+import { AuthContext } from "../../context/AuthContext";
 
 const ViewTimetableTTM = () => {
+  const { auth } = useContext(AuthContext);
   const [programs, setPrograms] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(null);
+  const [classes, setClasses] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [days, setDays] = useState([]);
   const [timeSlots, setTimeSlots] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedDivision, setSelectedDivision] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
 
@@ -21,9 +25,11 @@ const ViewTimetableTTM = () => {
       fetchDays();
       fetchTimeSlots(selectedProgram.programId);
       fetchTimetable(selectedProgram.programId);
+      fetchClasses(selectedProgram.programId);
     } else {
       // Clear filters when no program is selected
       setSelectedClass(null);
+      setSelectedDivision(null);
       setSelectedLocation(null);
       setSelectedTeacher(null);
       setTimetable([]);
@@ -32,10 +38,16 @@ const ViewTimetableTTM = () => {
     }
   }, [selectedProgram]);
 
+  useEffect(() => {
+    if (!selectedClass) {
+      setSelectedDivision(null);
+    }
+  }, [selectedClass]);
+
   const fetchPrograms = async () => {
     try {
       const response = await axios.get(
-        "https://localhost:7073/api/Academic/programs?departmentId=1"
+        `https://localhost:7073/api/Academic/programs?departmentId=${auth.departmentId}`
       );
       setPrograms(response.data);
     } catch (error) {
@@ -43,10 +55,21 @@ const ViewTimetableTTM = () => {
     }
   };
 
+  const fetchClasses = async (programId) => {
+    try {
+      const response = await axios.get(
+        `https://localhost:7073/api/Academic/classes?programId=${programId}`
+      );
+      setClasses(response.data);
+    } catch (error) {
+      console.error("Error fetching Classes:", error);
+    }
+  };
+
   const fetchTimetable = async (programId) => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Timetable/getTimetable?userId=1&programId=${programId}`
+        `https://localhost:7073/api/Timetable/getTimetable?userId=${auth.userId}&programId=${programId}`
       );
       setTimetable(response.data);
     } catch (error) {
@@ -82,19 +105,19 @@ const ViewTimetableTTM = () => {
 
   const handleFilterChange = (filterType, newValue) => {
     switch (filterType) {
-      case "class":
-        setSelectedClass(newValue);
-        setSelectedLocation(null);
-        setSelectedTeacher(null);
+      case "division":
+        setSelectedDivision(newValue);
         break;
       case "location":
         setSelectedLocation(newValue);
-        setSelectedClass(null);
+        setSelectedClass(null); // Clear class & division
+        setSelectedDivision(null);
         setSelectedTeacher(null);
         break;
       case "teacher":
         setSelectedTeacher(newValue);
-        setSelectedClass(null);
+        setSelectedClass(null); // Clear class & division
+        setSelectedDivision(null);
         setSelectedLocation(null);
         break;
       default:
@@ -102,11 +125,34 @@ const ViewTimetableTTM = () => {
     }
   };
 
+  const handleClassChange = (newValue) => {
+    setSelectedClass(newValue);
+    setSelectedDivision(null); // Ensure division resets when class changes
+    setSelectedLocation(null);
+    setSelectedTeacher(null);
+  };
+
   const filteredTimetable = timetable.filter((entry) => {
-    if (selectedClass) return entry.academicClassName === selectedClass;
-    if (selectedLocation) return entry.locationName === selectedLocation;
-    if (selectedTeacher) return entry.staffName === selectedTeacher;
-    return true;
+    // Class + Division filter (show only when both are selected)
+    if (selectedClass && selectedDivision) {
+      return (
+        entry.academicClassName === selectedClass &&
+        entry.divisionName === selectedDivision
+      );
+    }
+
+    // Teacher timetable (clears other filters)
+    if (selectedTeacher) {
+      return entry.staffName === selectedTeacher;
+    }
+
+    // Location timetable (clears other filters)
+    if (selectedLocation) {
+      return entry.locationName === selectedLocation;
+    }
+
+    // Default: show nothing until a valid combination is selected
+    return false;
   });
 
   return (
@@ -119,9 +165,11 @@ const ViewTimetableTTM = () => {
       selectedProgram={selectedProgram}
       handleProgramChange={setSelectedProgram}
       selectedClass={selectedClass}
+      selectedDivision={selectedDivision}
       selectedLocation={selectedLocation}
       selectedTeacher={selectedTeacher}
       handleFilterChange={handleFilterChange}
+      handleClassChange={handleClassChange}
     />
   );
 };

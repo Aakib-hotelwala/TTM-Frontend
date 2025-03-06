@@ -75,10 +75,11 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     (department) => department.departmentId === auth?.departmentId
   );
 
+  // State to manage form data, initialized with existing data or defaults
   const [formData, setFormData] = useState({
     academicYearId: initialData?.academicYearId || null,
-    facultyId1: faculties1?.[0]?.facultyId || null,
-    departmentId1: userDepartment?.departmentId || null,
+    facultyId1: faculties1?.[0]?.facultyId || null, // Prefill with user's faculty
+    departmentId1: userDepartment?.departmentId || null, // Prefill with user's department
     facultyId2: initialData?.facultyId2 || null,
     departmentId2: initialData?.departmentId2 || null,
     programId: initialData?.programId || null,
@@ -92,6 +93,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     locationId: initialData?.locationId || null,
   });
 
+  // Just for Checking Purpose: Effect to update form data when faculty or department changes
   useEffect(() => {
     setFormData((prev) => {
       const newFacultyId = faculties1?.[0]?.facultyId || null;
@@ -270,13 +272,13 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
 
       if (staffConflict.data?.conflict) {
         toast.error(
-          "Staff conflict detected! This staff member is already scheduled."
+          "Teacher conflict detected! This Teacher is already scheduled."
         );
       }
 
       if (locationConflict.data?.conflict) {
         toast.error(
-          "Location conflict detected! This room is already occupied."
+          "Location conflict detected! This Location is already occupied."
         );
       }
 

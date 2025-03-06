@@ -46,7 +46,7 @@ const DeleteTimetableModal = ({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Confirm Deletion</DialogTitle>
+      <DialogTitle>Delete Timetable Entry</DialogTitle>
       <DialogContent>
         <Typography>
           Are you sure you want to delete this timetable entry?

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import axios from "axios";
 import {
   Table,
@@ -21,10 +21,11 @@ import Autocomplete from "@mui/material/Autocomplete";
 import AddTimetableModal from "./AddTimetableModel";
 import UpdateTimetableModal from "./UpdateTimetableModel";
 import DeleteTimetableModal from "./DeleteTimetableModel";
-
+import { AuthContext } from "../../context/AuthContext";
 const API_BASE_URL = "https://localhost:7073/api";
 
 const ManageTimetable = () => {
+  const { auth } = useContext(AuthContext);
   const [filteredData, setFilteredData] = useState([]);
   const [openModal, setOpenModal] = useState(false);
   const [selectedTimetable, setSelectedTimetable] = useState(null);
@@ -40,13 +41,22 @@ const ManageTimetable = () => {
 
   // Fetch timetable data
   const fetchTimetable = async () => {
+    if (!auth?.userId) {
+      console.error("User ID not found in auth context");
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await axios.get(
-        `${API_BASE_URL}/Timetable/getTimetable?userId=1`
+        `${API_BASE_URL}/Timetable/getTimetable`,
+        {
+          params: { userId: auth.userId },
+        }
       );
+
       setTimetables(response.data);
-      console.log("Fetched data:", response.data); // ✅ Logs the correct data
+      console.log("Fetched timetable:", response.data); // ✅ Logs the user's timetable
     } catch (error) {
       console.error("Error fetching timetable data:", error);
     } finally {

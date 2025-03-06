@@ -4,9 +4,10 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { AuthContext } from "../../context/AuthContext";
 import universityLogo from "../../assets/Image.png";
-import { ClipLoader } from "react-spinners"; // Import the spinner component
+import { ClipLoader } from "react-spinners";
 
 const Login = () => {
+  // Access the login function from AuthContext to store user data after successful login
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
@@ -36,6 +37,7 @@ const Login = () => {
         { headers: { "Content-Type": "application/json" } }
       );
 
+      // Destructure the response data
       const { token, userId, facultyId, departmentId, roleIds } = response.data;
 
       // Find the highest-priority role the user has
@@ -44,12 +46,12 @@ const Login = () => {
       );
 
       if (!prioritizedRoleId) {
-        toast.error("You are not authorized to access this platform.");
+        toast.error("Invalid Credentials"); // Show error if no valid role is found
         setIsLoading(false);
         return;
       }
 
-      const role = roleMap[prioritizedRoleId];
+      const role = roleMap[prioritizedRoleId]; // Get role name based on role ID
 
       // Save user data to AuthContext
       login({
@@ -70,7 +72,25 @@ const Login = () => {
       navigate(`/${role}-homepage`, { replace: true });
     } catch (error) {
       console.error("Login error:", error);
-      toast.error(error.response?.data?.message || "Login failed");
+
+      if (error.response) {
+        const { status, data } = error.response;
+
+        // Handle specific status codes
+        if (status >= 400 || status < 500) {
+          toast.error("Invalid Credentials. Please try again.");
+        } else if (status === 500) {
+          toast.error("Server error. Please try again later.");
+        } else {
+          toast.error(data.message || "An unexpected error occurred.");
+        }
+      } else if (error.request) {
+        toast.error(
+          "No response from server. Please check your network connection."
+        );
+      } else {
+        toast.error("An error occurred while processing your request.");
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,3 @@
-// TimetableComponent.jsx
-
 import React from "react";
 import {
   Container,
@@ -23,9 +21,11 @@ const Timetable = ({
   filteredTimetable = [],
   selectedProgram,
   selectedClass,
+  selectedDivision,
   selectedLocation,
   selectedTeacher,
   handleProgramChange,
+  handleClassChange,
   handleFilterChange,
   uniqueValues,
 }) => {
@@ -58,21 +58,37 @@ const Timetable = ({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          marginTop: "20px",
+          gap: "20px",
+          marginBottom: "20px",
         }}
       >
-        <Autocomplete
-          sx={{ width: "30%" }}
-          options={uniqueValues("academicClassName")}
-          getOptionLabel={(option) => option || ""}
-          value={selectedClass}
-          onChange={(e, newValue) => handleFilterChange("class", newValue)}
-          renderInput={(params) => (
-            <TextField {...params} label="Select Class" fullWidth />
-          )}
-          disabled={!selectedProgram}
-        />
+        {/* Class and Division in one column */}
+        <div style={{ display: "flex", flexDirection: "column", width: "30%" }}>
+          <Autocomplete
+            options={uniqueValues("academicClassName")}
+            getOptionLabel={(option) => option || ""}
+            value={selectedClass}
+            onChange={(e, newValue) => handleClassChange(newValue)}
+            isOptionEqualToValue={(option, value) => option === value}
+            renderInput={(params) => (
+              <TextField {...params} label="Select Class" fullWidth />
+            )}
+            disabled={!selectedProgram}
+            sx={{ marginBottom: "10px" }}
+          />
+          <Autocomplete
+            options={uniqueValues("divisionName")}
+            getOptionLabel={(option) => option || ""}
+            value={selectedDivision}
+            onChange={(e, newValue) => handleFilterChange("division", newValue)}
+            renderInput={(params) => (
+              <TextField {...params} label="Select Division" fullWidth />
+            )}
+            disabled={!selectedClass}
+          />
+        </div>
 
+        {/* Location */}
         <Autocomplete
           sx={{ width: "30%" }}
           options={uniqueValues("locationName")}
@@ -85,6 +101,7 @@ const Timetable = ({
           disabled={!selectedProgram}
         />
 
+        {/* Teacher */}
         <Autocomplete
           sx={{ width: "30%" }}
           options={uniqueValues("staffName")}
@@ -104,8 +121,8 @@ const Timetable = ({
             <Table
               size="small"
               style={{
-                tableLayout: "fixed",
                 width: "100%",
+                tableLayout: "fixed",
                 borderCollapse: "collapse",
               }}
             >
@@ -146,7 +163,7 @@ const Timetable = ({
                         textAlign: "center",
                         fontWeight: "bold",
                         width: "150px",
-                        height: "50px",
+                        height: "60px",
                         border: "1px solid #ccc",
                       }}
                     >
@@ -158,28 +175,97 @@ const Timetable = ({
                           t.dayId === day.dayId &&
                           t.timeSlotId === slot.timeSlotId
                       );
+
+                      const renderContent = () => {
+                        if (!entry) return "-";
+
+                        return (
+                          <>
+                            {selectedDivision && (
+                              <>
+                                {entry.subjectName && (
+                                  <Typography variant="body2" color="primary">
+                                    {entry.subjectName}
+                                  </Typography>
+                                )}
+                                {entry.staffName && (
+                                  <Typography variant="body2" color="error">
+                                    {entry.staffName}
+                                  </Typography>
+                                )}
+                              </>
+                            )}
+                            {selectedLocation && (
+                              <>
+                                {entry.subjectName && (
+                                  <Typography variant="body2" color="error">
+                                    {entry.subjectName}
+                                  </Typography>
+                                )}
+                                {entry.academicClassName && (
+                                  <Typography variant="body2" color="secondary">
+                                    {entry.academicClassName}
+                                  </Typography>
+                                )}
+                                {entry.divisionName && (
+                                  <Typography variant="body2" color="primary">
+                                    {`Division-${entry.divisionName}`}
+                                  </Typography>
+                                )}
+                                {entry.staffName && (
+                                  <Typography variant="body2" color="error">
+                                    {entry.staffName}
+                                  </Typography>
+                                )}
+                              </>
+                            )}
+                            {selectedTeacher && (
+                              <>
+                                {entry.subjectName && (
+                                  <Typography variant="body2" color="error">
+                                    {entry.subjectName}
+                                  </Typography>
+                                )}
+                                {entry.academicClassName && (
+                                  <Typography variant="body2" color="secondary">
+                                    {entry.academicClassName}
+                                  </Typography>
+                                )}
+                                {entry.divisionName && (
+                                  <Typography variant="body2" color="primary">
+                                    {`Division-${entry.divisionName}`}
+                                  </Typography>
+                                )}
+                                {entry.locationName && (
+                                  <Typography variant="body2" color="error">
+                                    {entry.locationName}
+                                  </Typography>
+                                )}
+                              </>
+                            )}
+                            {selectedDivision && entry.locationName && (
+                              <Typography variant="body2" color="secondary">
+                                {entry.locationName}
+                              </Typography>
+                            )}
+                          </>
+                        );
+                      };
+
                       return (
                         <TableCell
                           key={day.dayId}
                           style={{
                             textAlign: "center",
                             width: "150px",
-                            height: "50px",
+                            height: "60px",
                             border: "1px solid #ccc",
-                            overflow: "hidden",
-                            whiteSpace: "nowrap",
-                            textOverflow: "ellipsis",
+                            wordWrap: "break-word",
+                            whiteSpace: "pre-line",
+                            padding: "8px",
                           }}
                         >
-                          {entry ? (
-                            <>
-                              <div>{entry.subjectName}</div>
-                              <div>{entry.staffName}</div>
-                              <div>{entry.locationName}</div>
-                            </>
-                          ) : (
-                            "-"
-                          )}
+                          {renderContent()}
                         </TableCell>
                       );
                     })}
