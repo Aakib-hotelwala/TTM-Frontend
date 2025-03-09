@@ -72,7 +72,9 @@ const Header = ({ title }) => {
               onClick={() => setIsOpen(!isOpen)}
               className="bg-gray-800 hover:bg-gray-600 text-white border border-gray-600 rounded-lg px-4 py-2 flex items-center justify-between w-28 shadow-md focus:outline-none cursor-pointer"
             >
-              {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
+              {selectedRole === "ttm" || selectedRole === "hod"
+                ? selectedRole.toUpperCase()
+                : selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
               <FaChevronDown className="ml-2 text-sm" />
             </button>
             {isOpen && (
@@ -83,8 +85,10 @@ const Header = ({ title }) => {
                     onClick={() => handleRoleChange(roleMap[roleId])}
                     className="px-4 py-3 text-white hover:bg-blue-600 transition-all cursor-pointer"
                   >
-                    {roleMap[roleId].charAt(0).toUpperCase() +
-                      roleMap[roleId].slice(1)}
+                    {roleMap[roleId] === "ttm" || roleMap[roleId] === "hod"
+                      ? roleMap[roleId].toUpperCase()
+                      : roleMap[roleId].charAt(0).toUpperCase() +
+                        roleMap[roleId].slice(1)}
                   </li>
                 ))}
               </ul>

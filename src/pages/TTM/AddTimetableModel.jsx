@@ -539,7 +539,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Academic Year Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["academicYearId"] || false}
+                checked={!!persistFields["academicYearId"] || false}
                 onChange={() => handleCheckboxChange("academicYearId")}
               />
               <Box flexGrow={1} marginRight={1}>
@@ -572,7 +572,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Program Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["programId"] || false}
+                checked={!!persistFields["programId"] || false}
                 onChange={() => handleCheckboxChange("programId")}
               />
               <Box flexGrow={1} marginRight={1}>
@@ -600,7 +600,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Class Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["academicClassId"] || false}
+                checked={!!persistFields["academicClassId"] || false}
                 onChange={() => handleCheckboxChange("academicClassId")}
                 disabled={!persistFields["programId"]}
               />
@@ -630,7 +630,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Division Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["divisionId"] || false}
+                checked={!!persistFields["divisionId"] || false}
                 onChange={() => handleCheckboxChange("divisionId")}
                 disabled={!persistFields["academicClassId"]}
               />
@@ -660,7 +660,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Subject Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["subjectId"] || false}
+                checked={!!persistFields["subjectId"] || false}
                 onChange={() => handleCheckboxChange("subjectId")}
                 disabled={!persistFields["academicClassId"]}
               />
@@ -690,7 +690,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {isBatchEnabled && (
               <Box display="flex" alignItems="center" marginY={2} width="100%">
                 <Checkbox
-                  checked={persistFields["batchId"] || false}
+                  checked={!!persistFields["batchId"] || false}
                   onChange={() => handleCheckboxChange("batchId")}
                   disabled={!persistFields["divisionId"]}
                 />
@@ -722,7 +722,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Day Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["dayId"] || false}
+                checked={!!persistFields["dayId"] || false}
                 onChange={() => handleCheckboxChange("dayId")}
               />
               <Box flexGrow={1} marginRight={1}>
@@ -743,7 +743,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* TimeSlot Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["timeSlotId"] || false}
+                checked={!!persistFields["timeSlotId"] || false}
                 onChange={() => handleCheckboxChange("timeSlotId")}
                 disabled={!persistFields["programId"]}
               />
@@ -777,7 +777,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* Location Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={persistFields["locationId"] || false}
+                checked={!!persistFields["locationId"] || false}
                 onChange={() => handleCheckboxChange("locationId")}
               />
               <Box flexGrow={1} marginRight={1}>
@@ -812,7 +812,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               {/* Faculty Dropdown */}
               <Box display="flex" alignItems="center" marginY={2} width="100%">
                 <Checkbox
-                  checked={persistFields["facultyId2"] || false}
+                  checked={!!persistFields["facultyId2"] || false}
                   onChange={() => handleCheckboxChange("facultyId2")}
                 />
                 <Box flexGrow={1} marginRight={1}>
@@ -840,7 +840,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               {/* Department Dropdown */}
               <Box display="flex" alignItems="center" marginY={2} width="100%">
                 <Checkbox
-                  checked={persistFields["departmentId2"] || false}
+                  checked={!!persistFields["departmentId2"] || false}
                   onChange={() => handleCheckboxChange("departmentId2")}
                   disabled={!persistFields["facultyId2"]}
                 />
@@ -874,7 +874,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               {/* Teacher Dropdown */}
               <Box display="flex" alignItems="center" marginY={2} width="100%">
                 <Checkbox
-                  checked={persistFields["staffId"] || false}
+                  checked={!!persistFields["staffId"] || false}
                   onChange={() => handleCheckboxChange("staffId")}
                   disabled={!persistFields["departmentId2"]}
                 />
@@ -905,6 +905,10 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
         </Grid>
       </DialogContent>
 
+      <p className="text-md text-blue-500 mb-5">
+        ✅ Fields with checked checkboxes will keep their selected values when
+        you submit or cancel. Unchecked fields will be cleared.
+      </p>
       <DialogActions>
         <Button onClick={handleCancel}>Cancel</Button>
         <Button

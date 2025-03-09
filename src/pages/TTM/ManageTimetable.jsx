@@ -22,6 +22,7 @@ import AddTimetableModal from "./AddTimetableModel";
 import UpdateTimetableModal from "./UpdateTimetableModel";
 import DeleteTimetableModal from "./DeleteTimetableModel";
 import { AuthContext } from "../../context/AuthContext";
+
 const API_BASE_URL = "https://localhost:7073/api";
 
 const ManageTimetable = () => {
