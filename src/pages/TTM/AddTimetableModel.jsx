@@ -18,43 +18,38 @@ import toast from "react-hot-toast";
 const API_BASE_URL = "https://localhost:7073/api";
 
 // Define cache outside to persist across renders
-const cache = {};
-
 const useFetchData = (endpoint, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!endpoint) return;
-
-    if (cache[endpoint]) {
-      setData(cache[endpoint]);
-      return;
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
+      const extractedData = response.data?.data || response.data;
+      setData(extractedData);
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      setData([]);
     }
+    setLoading(false);
+  };
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
-        const extractedData = response.data?.data || response.data;
-        cache[endpoint] = extractedData;
-        setData(extractedData);
-      } catch (error) {
-        console.error(`Error fetching ${endpoint}:`, error);
-        setData([]);
-      }
-      setLoading(false);
-    };
-
+  useEffect(() => {
     fetchData();
   }, dependencies);
 
-  return { data, loading };
+  return { data, loading, refetch: fetchData }; // Add a refetch method
 };
 
 const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   const { auth } = useContext(AuthContext); // Get facultyId and departmentId from auth context
   const [persistFields, setPersistFields] = useState({});
+  const [availableLocations, setAvailableLocations] = useState([]);
+  const [availableTeachers, setAvailableTeachers] = useState([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+
   // Fetch all faculties
   const { data: allFaculties, loading: facultiesLoading } =
     useFetchData("Academic/Faculties");
@@ -173,21 +168,128 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   // Fetch Days
   const { data: days } = useFetchData("Timetable/days");
 
-  // Fetch Classes based on selected program
-  const { data: timeSlots } = useFetchData(
+  // Fetch all time slots based on selected program
+  const { data: allTimeSlots, loading: loadingTimeSlots } = useFetchData(
     formData.programId
       ? `Timetable/timeslots?programId=${formData.programId}`
       : null,
     [formData.programId]
   );
 
-  // Fetch locations based on selected department
-  const { data: locations } = useFetchData(
-    formData.departmentId1
-      ? `Location/locations?departmentId=${formData.departmentId1}`
-      : null,
-    [formData.departmentId1]
+  const {
+    data: timetableData,
+    loading: loadingTimetable,
+    refetch: refetchTimetable,
+  } = useFetchData(
+    auth.userId ? `Timetable/getTimetable?userId=${auth.userId}` : null,
+    [auth.userId]
   );
+
+  useEffect(() => {
+    console.log("All Time Slots:", allTimeSlots);
+    console.log("Timetable Data:", timetableData);
+
+    if (!Array.isArray(allTimeSlots) || allTimeSlots.length === 0) {
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    if (!Array.isArray(timetableData)) {
+      console.error("Invalid timetable data:", timetableData);
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    // Ensure required fields are selected
+    if (!formData.dayId || (!formData.divisionId && !formData.batchId)) {
+      setAvailableTimeSlots(allTimeSlots); // Show all slots if required fields are missing
+      return;
+    }
+
+    // Determine whether to filter by batch or division
+    const isPractical = selectedSubject?.subjectTypeName === "Practical";
+
+    // Get occupied time slots based on batch for practicals or division for others
+    const occupiedTimeSlotIds = timetableData
+      .filter((entry) => {
+        if (isPractical) {
+          return (
+            entry.batchId === formData.batchId && entry.dayId === formData.dayId
+          );
+        } else {
+          return (
+            entry.divisionId === formData.divisionId &&
+            entry.dayId === formData.dayId
+          );
+        }
+      })
+      .map((entry) => entry.timeSlotId);
+
+    console.log(
+      isPractical
+        ? "Occupied Time Slot IDs for Batch & Day:"
+        : "Occupied Time Slot IDs for Division & Day:",
+      occupiedTimeSlotIds
+    );
+
+    // Filter available time slots
+    const nonConflictingTimeSlots = allTimeSlots.filter(
+      (timeSlot) => !occupiedTimeSlotIds.includes(timeSlot.timeSlotId)
+    );
+
+    console.log("Filtered Available Time Slots:", nonConflictingTimeSlots);
+
+    setAvailableTimeSlots(nonConflictingTimeSlots);
+  }, [
+    allTimeSlots,
+    timetableData,
+    formData.divisionId,
+    formData.dayId,
+    formData.batchId,
+    selectedSubject,
+  ]);
+
+  useEffect(() => {
+    const fetchAvailableLocations = async () => {
+      if (formData.departmentId1) {
+        try {
+          // Fetch locations based on selected department
+          const { data: locations } = await axios.get(
+            `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`
+          );
+
+          if (formData.dayId && formData.timeSlotId) {
+            // Check conflicts for each location
+            const conflictPromises = locations.map((location) =>
+              axios.post(`${API_BASE_URL}/Timetable/check-location`, {
+                dayId: formData.dayId,
+                timeSlotId: formData.timeSlotId,
+                locationId: location.locationId,
+              })
+            );
+
+            const conflictResults = await Promise.all(conflictPromises);
+
+            // Filter out only locations with conflict === true
+            const availableLocations = locations.filter(
+              (location, index) => !conflictResults[index].data.conflict
+            );
+
+            setAvailableLocations(availableLocations);
+          } else {
+            setAvailableLocations(locations); // Show all if day/timeslot not selected
+          }
+        } catch (error) {
+          console.error("Error fetching available locations:", error);
+          setAvailableLocations([]);
+        }
+      } else {
+        setAvailableLocations([]); // Clear if no department selected
+      }
+    };
+
+    fetchAvailableLocations();
+  }, [formData.departmentId1, formData.dayId, formData.timeSlotId]);
 
   // Faculties-2:- Fetch faculties
   const { data: faculties2 } = useFetchData("Academic/Faculties");
@@ -200,13 +302,48 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     [formData.facultyId2]
   );
 
-  // Fetch Teachers based on selected Department
-  const { data: staffMembers } = useFetchData(
-    formData.departmentId2
-      ? `Staff/teachers?departmentId=${formData.departmentId2}`
-      : null,
-    [formData.departmentId2]
-  );
+  // Fetch teachers based on selected department and filter conflicts
+  useEffect(() => {
+    const fetchAvailableTeachers = async () => {
+      if (!formData.departmentId2) {
+        setAvailableTeachers([]);
+        return;
+      }
+
+      try {
+        // Fetch teachers based on department
+        const { data: staffMembers } = await axios.get(
+          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`
+        );
+
+        if (formData.dayId && formData.timeSlotId) {
+          // Check each teacher for conflicts
+          const conflictPromises = staffMembers.map((teacher) =>
+            axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
+              dayId: formData.dayId,
+              timeSlotId: formData.timeSlotId,
+              staffId: teacher.staffId,
+            })
+          );
+
+          const conflictResults = await Promise.all(conflictPromises);
+
+          // Filter out teachers with conflicts
+          const availableTeachers = staffMembers.filter(
+            (_, index) => !conflictResults[index]?.data?.conflict
+          );
+
+          setAvailableTeachers(availableTeachers);
+        } else {
+          setAvailableTeachers(staffMembers); // Show all teachers if no day/timeslot selected
+        }
+      } catch (error) {
+        console.error("Error fetching available teachers:", error);
+      }
+    };
+
+    fetchAvailableTeachers();
+  }, [formData.departmentId2, formData.dayId, formData.timeSlotId]);
 
   const handleSubmit = async () => {
     const isPractical = selectedSubject?.subjectTypeName === "Practical";
@@ -245,51 +382,51 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     };
 
     try {
-      // Conflict checks
-      const [divisionConflict, staffConflict, locationConflict] =
-        await Promise.all([
-          axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
-            divisionId: formData.divisionId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-            ...(isPractical && { batchId: formData.batchId }),
-          }),
-          axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
-            staffId: formData.staffId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-          }),
-          axios.post(`${API_BASE_URL}/Timetable/check-location`, {
-            locationId: formData.locationId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-          }),
-        ]);
+      // // Conflict checks
+      // const [divisionConflict, staffConflict, locationConflict] =
+      //   await Promise.all([
+      //     axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
+      //       divisionId: formData.divisionId,
+      //       dayId: formData.dayId,
+      //       timeSlotId: formData.timeSlotId,
+      //       ...(isPractical && { batchId: formData.batchId }),
+      //     }),
+      //     axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
+      //       staffId: formData.staffId,
+      //       dayId: formData.dayId,
+      //       timeSlotId: formData.timeSlotId,
+      //     }),
+      //     axios.post(`${API_BASE_URL}/Timetable/check-location`, {
+      //       locationId: formData.locationId,
+      //       dayId: formData.dayId,
+      //       timeSlotId: formData.timeSlotId,
+      //     }),
+      //   ]);
 
-      if (divisionConflict.data?.conflict) {
-        toast.error("Division or batch conflict detected!");
-      }
+      // if (divisionConflict.data?.conflict) {
+      //   toast.error("Division or batch conflict detected!");
+      // }
 
-      if (staffConflict.data?.conflict) {
-        toast.error(
-          "Teacher conflict detected! This Teacher is already scheduled."
-        );
-      }
+      // if (staffConflict.data?.conflict) {
+      //   toast.error(
+      //     "Teacher conflict detected! This Teacher is already scheduled."
+      //   );
+      // }
 
-      if (locationConflict.data?.conflict) {
-        toast.error(
-          "Location conflict detected! This Location is already occupied."
-        );
-      }
+      // if (locationConflict.data?.conflict) {
+      //   toast.error(
+      //     "Location conflict detected! This Location is already occupied."
+      //   );
+      // }
 
-      // Stop if any conflict is detected
-      if (
-        divisionConflict.data?.conflict ||
-        staffConflict.data?.conflict ||
-        locationConflict.data?.conflict
-      ) {
-        return;
-      }
+      // // Stop if any conflict is detected
+      // if (
+      //   divisionConflict.data?.conflict ||
+      //   staffConflict.data?.conflict ||
+      //   locationConflict.data?.conflict
+      // ) {
+      //   return;
+      // }
 
       // Insert timetable if no conflicts
       const response = await axios.post(
@@ -307,11 +444,40 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
         // Clear non-persistent fields after submit
         setFormData((prev) => {
           const updatedData = {};
+
           Object.keys(prev).forEach((key) => {
-            updatedData[key] = persistFields[key] ? prev[key] : "";
+            updatedData[key] = persistFields[key] ? prev[key] : ""; // Clear non-persistent fields
           });
+
+          // Ensure timeSlotId is explicitly cleared
+          setPersistFields((prev) => ({
+            ...prev,
+            divisionId: false,
+            batchId: false,
+            timeSlotId: false,
+            staffId: false,
+            locationId: false,
+          }));
+
+          // Clear their values from form data
+          setFormData((prev) => ({
+            ...prev,
+            divisionId: "",
+            batchId: "",
+            timeSlotId: "",
+            staffId: "",
+            locationId: "",
+          }));
+
+          updatedData["divisionId"] = "";
+          updatedData["batchId"] = "";
+          updatedData["timeSlotId"] = "";
+          updatedData["locationId"] = "";
+          updatedData["staffId"] = "";
+
           return updatedData;
         });
+        refetchTimetable();
 
         localStorage.setItem("formData", JSON.stringify(formData)); // Update local storage
 
@@ -423,7 +589,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     });
   };
 
-  const handleChange = (key, value) => {
+  const handleChange = async (key, value) => {
     setFormData((prev) => {
       let updatedData = { ...prev, [key]: value };
 
@@ -470,7 +636,19 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       } else if (key === "divisionId") {
         updatedData = {
           ...updatedData,
+          timeSlotId: null,
           batchId: null,
+        };
+      } else if (key === "batchId") {
+        updatedData = {
+          ...updatedData,
+          timeSlotId: null,
+        };
+      } else if (key === "timeSlotId") {
+        updatedData = {
+          ...updatedData,
+          locationId: null,
+          staffId: null,
         };
       } else if (key === "facultyId2") {
         updatedData = {
@@ -692,7 +870,6 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                 <Checkbox
                   checked={!!persistFields["batchId"] || false}
                   onChange={() => handleCheckboxChange("batchId")}
-                  disabled={!persistFields["divisionId"]}
                 />
                 <Box flexGrow={1} marginRight={1}>
                   <Autocomplete
@@ -743,15 +920,15 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
             {/* TimeSlot Dropdown */}
             <Box display="flex" alignItems="center" marginY={2} width="100%">
               <Checkbox
-                checked={!!persistFields["timeSlotId"] || false}
+                checked={!!persistFields["timeSlotId"]}
                 onChange={() => handleCheckboxChange("timeSlotId")}
                 disabled={!persistFields["programId"]}
               />
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
                   value={
-                    timeSlots?.find(
-                      (t) => t.timeSlotId === formData.timeSlotId
+                    availableTimeSlots?.find(
+                      (slot) => slot.timeSlotId === formData.timeSlotId
                     ) || null
                   }
                   onChange={(e, newValue) =>
@@ -760,16 +937,24 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                       newValue ? newValue.timeSlotId : null
                     )
                   }
-                  options={Array.isArray(timeSlots) ? timeSlots : []}
+                  options={
+                    Array.isArray(availableTimeSlots) ? availableTimeSlots : []
+                  }
                   getOptionLabel={(option) =>
-                    option
+                    option?.timeslot
                       ? `${option.timeslot}: ${option.fromTime}-${option.toTime}`
                       : ""
                   }
                   renderInput={(params) => (
                     <TextField {...params} label="Select TimeSlot" fullWidth />
                   )}
-                  disabled={!formData.programId} // Disable if no program is selected
+                  disabled={
+                    !formData.programId ||
+                    (formData.subjectType === "practical" &&
+                      !formData.batchId) ||
+                    (formData.subjectType !== "practical" &&
+                      !formData.divisionId)
+                  }
                 />
               </Box>
             </Box>
@@ -783,7 +968,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               <Box flexGrow={1} marginRight={1}>
                 <Autocomplete
                   value={
-                    locations?.find(
+                    availableLocations.find(
                       (l) => l.locationId === formData.locationId
                     ) || null
                   }
@@ -793,15 +978,16 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                       newValue ? newValue.locationId : null
                     )
                   }
-                  options={Array.isArray(locations) ? locations : []}
+                  options={availableLocations}
                   getOptionLabel={(option) => option?.locationName ?? ""}
                   renderInput={(params) => (
                     <TextField {...params} label="Select Location" fullWidth />
                   )}
-                  disabled={!formData.departmentId1} // Disable if no department is selected
+                  disabled={!formData.departmentId1 && !formData.timeSlotId}
                 />
               </Box>
             </Box>
+
             <Box
               border={1}
               borderColor="grey.400"
@@ -874,15 +1060,15 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
               {/* Teacher Dropdown */}
               <Box display="flex" alignItems="center" marginY={2} width="100%">
                 <Checkbox
-                  checked={!!persistFields["staffId"] || false}
+                  checked={!!persistFields["staffId"]}
                   onChange={() => handleCheckboxChange("staffId")}
                   disabled={!persistFields["departmentId2"]}
                 />
                 <Box flexGrow={1} marginRight={1}>
                   <Autocomplete
                     value={
-                      staffMembers?.find(
-                        (s) => s.staffId === formData.staffId
+                      availableTeachers?.find(
+                        (teacher) => teacher.staffId === formData.staffId
                       ) || null
                     }
                     onChange={(e, newValue) =>
@@ -891,12 +1077,12 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                         newValue ? newValue.staffId : null
                       )
                     }
-                    options={Array.isArray(staffMembers) ? staffMembers : []}
+                    options={availableTeachers || []}
                     getOptionLabel={(option) => option?.fullName ?? ""}
                     renderInput={(params) => (
                       <TextField {...params} label="Select Teacher" fullWidth />
                     )}
-                    disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
+                    disabled={!formData.departmentId2 && !formData.timeSlotId}
                   />
                 </Box>
               </Box>
