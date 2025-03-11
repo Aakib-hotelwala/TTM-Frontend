@@ -106,13 +106,13 @@ const Timetable = ({
         pdf.setFont("helvetica", "normal");
 
         const info = [
-          { label: "Faculty", value: facultyName || "N/A" },
-          { label: "Department", value: departmentName || "N/A" },
-          { label: "Program", value: selectedProgram?.programName || "N/A" },
-          { label: "Division", value: selectedDivision || "N/A" },
-          { label: "Teacher", value: selectedTeacher || "N/A" },
-          { label: "Location", value: selectedLocation || "N/A" },
-        ];
+          { label: "Faculty", value: facultyName },
+          { label: "Department", value: departmentName },
+          { label: "Program", value: selectedProgram?.programName },
+          { label: "Division", value: selectedDivision },
+          { label: "Teacher", value: selectedTeacher },
+          { label: "Location", value: selectedLocation },
+        ].filter((item) => item.value && item.value !== "N/A"); // Remove "N/A" fields
 
         let startY = 50;
 
@@ -134,9 +134,9 @@ const Timetable = ({
 
         // Capture timetable image
         const canvas = await html2canvas(tableRef.current, {
-          backgroundColor: null, // Removes background (prevents dark shadows)
-          scale: 2, // Higher quality capture
-          removeContainer: true, // Removes hidden elements
+          backgroundColor: null,
+          scale: 2,
+          removeContainer: true,
         });
 
         const imgData = canvas.toDataURL("image/png");

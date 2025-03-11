@@ -22,6 +22,8 @@ import AddTimetableModal from "./AddTimetableModel";
 import UpdateTimetableModal from "./UpdateTimetableModel";
 import DeleteTimetableModal from "./DeleteTimetableModel";
 import { AuthContext } from "../../context/AuthContext";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const API_BASE_URL = "https://localhost:7073/api";
 
@@ -146,6 +148,39 @@ const ManageTimetable = () => {
     { label: "Location", key: "locationName" },
   ];
 
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      filteredData.map((item, index) => ({
+        "Sr. No": index + 1,
+        "Academic Year": item.academicYearCode || "N/A",
+        Faculty: item.facultyName || "N/A",
+        Department: item.departmentName || "N/A",
+        Program: item.programName || "N/A",
+        Class: item.academicClassName || "N/A",
+        Division: item.divisionName || "N/A",
+        Batch: item.batchName || "N/A",
+        Subject: item.subjectName || "N/A",
+        Day: item.dayName || "N/A",
+        "Time Slot": item.timeslot || "N/A",
+        Teacher: item.staffName || "N/A",
+        Location: item.locationName || "N/A",
+      }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Timetable");
+
+    // Generate Excel file and trigger download
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(data, "Timetable.xlsx");
+  };
+
   return (
     <div>
       <Box
@@ -170,50 +205,66 @@ const ManageTimetable = () => {
         </Button>
       </Box>
 
-      {/* Search Filters */}
-      <Box display="flex" gap={2} mb={2} alignItems="center">
+      <Box
+        display="flex"
+        gap={2}
+        mb={2}
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        {/* Search Filters */}
+        <Box display="flex" gap={2} mb={2} alignItems="center">
+          <Button
+            variant="contained"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+            onClick={() => {
+              setSelectedClass(null);
+              setSelectedTeacher(null);
+              setSelectedLocation(null);
+            }}
+          >
+            Clear Filters
+          </Button>
+          {[
+            {
+              label: "Search Class",
+              value: selectedClass,
+              setter: setSelectedClass,
+              options: classOptions,
+            },
+            {
+              label: "Search Teacher",
+              value: selectedTeacher,
+              setter: setSelectedTeacher,
+              options: teacherOptions,
+            },
+            {
+              label: "Search Location",
+              value: selectedLocation,
+              setter: setSelectedLocation,
+              options: locationOptions,
+            },
+          ].map(({ label, value, setter, options }) => (
+            <Autocomplete
+              key={label}
+              options={options}
+              value={value}
+              onChange={(event, newValue) => setter(newValue)}
+              renderInput={(params) => (
+                <TextField {...params} label={label} variant="outlined" />
+              )}
+              sx={{ width: 250 }}
+            />
+          ))}
+        </Box>
+
         <Button
           variant="contained"
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-          onClick={() => {
-            setSelectedClass(null);
-            setSelectedTeacher(null);
-            setSelectedLocation(null);
-          }}
+          className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+          onClick={downloadExcel}
         >
-          Clear Filters
+          Download Entries
         </Button>
-        {[
-          {
-            label: "Search Class",
-            value: selectedClass,
-            setter: setSelectedClass,
-            options: classOptions,
-          },
-          {
-            label: "Search Teacher",
-            value: selectedTeacher,
-            setter: setSelectedTeacher,
-            options: teacherOptions,
-          },
-          {
-            label: "Search Location",
-            value: selectedLocation,
-            setter: setSelectedLocation,
-            options: locationOptions,
-          },
-        ].map(({ label, value, setter, options }) => (
-          <Autocomplete
-            key={label}
-            options={options}
-            value={value}
-            onChange={(event, newValue) => setter(newValue)}
-            renderInput={(params) => (
-              <TextField {...params} label={label} variant="outlined" />
-            )}
-            sx={{ width: 250 }}
-          />
-        ))}
       </Box>
 
       {loading ? (
