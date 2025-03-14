@@ -18,7 +18,7 @@ import toast from "react-hot-toast";
 const API_BASE_URL = "https://localhost:7073/api";
 
 // Define cache outside to persist across renders
-const useFetchData = (endpoint, dependencies = []) => {
+const useFetchData = (endpoint, auth, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +26,11 @@ const useFetchData = (endpoint, dependencies = []) => {
     if (!endpoint) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
+      const response = await axios.get(`${API_BASE_URL}/${endpoint}`, {
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+        },
+      });
       const extractedData = response.data?.data || response.data;
       setData(extractedData);
     } catch (error) {
@@ -51,8 +55,10 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
 
   // Fetch all faculties
-  const { data: allFaculties, loading: facultiesLoading } =
-    useFetchData("Academic/Faculties");
+  const { data: allFaculties, loading: facultiesLoading } = useFetchData(
+    "Academic/Faculties",
+    auth
+  );
 
   // Get the user's faculty
   const faculties1 = allFaculties?.filter(
@@ -62,6 +68,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   // Fetch departments by the user's facultyId
   const { data: departments1, loading: departmentsLoading } = useFetchData(
     auth?.facultyId ? `Academic/departments?facultyId=${auth.facultyId}` : null,
+    auth,
     [auth?.facultyId]
   );
 
@@ -114,6 +121,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.facultyId1
       ? `Academic/current_academic_year?facultyId=${formData.facultyId1}`
       : null,
+    auth,
     [formData.facultyId1]
   );
 
@@ -122,6 +130,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.departmentId1
       ? `Academic/programs?departmentId=${formData.departmentId1}`
       : null,
+    auth,
     [formData.departmentId1]
   );
 
@@ -130,6 +139,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.programId
       ? `Academic/classes?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
@@ -138,6 +148,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.academicClassId
       ? `Division/divisions?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId]
   );
 
@@ -146,6 +157,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.academicClassId
       ? `Academic/subjects?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId] // ✅ Correct dependency
   );
 
@@ -154,6 +166,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     formData.divisionId
       ? `Division/batches?divisionId=${formData.divisionId}`
       : null,
+    auth,
     [formData.divisionId] // ✅ Correct dependency
   );
 
@@ -166,13 +179,14 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   const isBatchEnabled = selectedSubject?.subjectTypeName === "Practical";
 
   // Fetch Days
-  const { data: days } = useFetchData("Timetable/days");
+  const { data: days } = useFetchData("Timetable/days", auth);
 
   // Fetch all time slots based on selected program
   const { data: allTimeSlots, loading: loadingTimeSlots } = useFetchData(
     formData.programId
       ? `Timetable/timeslots?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
@@ -182,6 +196,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
     refetch: refetchTimetable,
   } = useFetchData(
     auth.userId ? `Timetable/getTimetable?userId=${auth.userId}` : null,
+    auth,
     [auth.userId]
   );
 
@@ -255,17 +270,30 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
         try {
           // Fetch locations based on selected department
           const { data: locations } = await axios.get(
-            `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`
+            `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`,
+            {
+              headers: {
+                Authorization: `Bearer ${auth?.token}`,
+              },
+            }
           );
 
           if (formData.dayId && formData.timeSlotId) {
             // Check conflicts for each location
             const conflictPromises = locations.map((location) =>
-              axios.post(`${API_BASE_URL}/Timetable/check-location`, {
-                dayId: formData.dayId,
-                timeSlotId: formData.timeSlotId,
-                locationId: location.locationId,
-              })
+              axios.post(
+                `${API_BASE_URL}/Timetable/check-location`,
+                {
+                  dayId: formData.dayId,
+                  timeSlotId: formData.timeSlotId,
+                  locationId: location.locationId,
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${auth?.token}`,
+                  },
+                }
+              )
             );
 
             const conflictResults = await Promise.all(conflictPromises);
@@ -292,13 +320,14 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
   }, [formData.departmentId1, formData.dayId, formData.timeSlotId]);
 
   // Faculties-2:- Fetch faculties
-  const { data: faculties2 } = useFetchData("Academic/Faculties");
+  const { data: faculties2 } = useFetchData("Academic/Faculties", auth);
 
   // Departments-2 Fetch departments based on selected faculty
   const { data: departments2 } = useFetchData(
     formData.facultyId2
       ? `Academic/departments?facultyId=${formData.facultyId2}`
       : null,
+    auth,
     [formData.facultyId2]
   );
 
@@ -313,17 +342,30 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       try {
         // Fetch teachers based on department
         const { data: staffMembers } = await axios.get(
-          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`
+          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
 
         if (formData.dayId && formData.timeSlotId) {
           // Check each teacher for conflicts
           const conflictPromises = staffMembers.map((teacher) =>
-            axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
-              dayId: formData.dayId,
-              timeSlotId: formData.timeSlotId,
-              staffId: teacher.staffId,
-            })
+            axios.post(
+              `${API_BASE_URL}/Timetable/check-staff`,
+              {
+                dayId: formData.dayId,
+                timeSlotId: formData.timeSlotId,
+                staffId: teacher.staffId,
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${auth?.token}`,
+                },
+              }
+            )
           );
 
           const conflictResults = await Promise.all(conflictPromises);
@@ -433,7 +475,10 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
         `${API_BASE_URL}/Timetable/insert`,
         timetableData,
         {
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth?.token}`, // ✅ Move inside headers
+          },
         }
       );
 
@@ -636,8 +681,8 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
       } else if (key === "divisionId") {
         updatedData = {
           ...updatedData,
-          timeSlotId: null,
           batchId: null,
+          timeSlotId: null,
         };
       } else if (key === "batchId") {
         updatedData = {
@@ -950,10 +995,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                   )}
                   disabled={
                     !formData.programId ||
-                    (formData.subjectType === "practical" &&
-                      !formData.batchId) ||
-                    (formData.subjectType !== "practical" &&
-                      !formData.divisionId)
+                    (isBatchEnabled ? !formData.batchId : !formData.divisionId)
                   }
                 />
               </Box>
@@ -983,7 +1025,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                   renderInput={(params) => (
                     <TextField {...params} label="Select Location" fullWidth />
                   )}
-                  disabled={!formData.departmentId1 && !formData.timeSlotId}
+                  disabled={!formData.departmentId1 || !formData.timeSlotId}
                 />
               </Box>
             </Box>
@@ -1082,7 +1124,7 @@ const AddTimetableModal = ({ open, onClose, onSubmit, initialData }) => {
                     renderInput={(params) => (
                       <TextField {...params} label="Select Teacher" fullWidth />
                     )}
-                    disabled={!formData.departmentId2 && !formData.timeSlotId}
+                    disabled={!formData.departmentId2 || !formData.timeSlotId}
                   />
                 </Box>
               </Box>

@@ -131,7 +131,9 @@ const RoleManagement = () => {
             label="Role Name"
             variant="outlined"
             value={newRole.roleName}
-            onChange={(e) => setNewRole({ ...newRole, roleName: e.target.value })}
+            onChange={(e) =>
+              setNewRole({ ...newRole, roleName: e.target.value })
+            }
             required
             sx={{ mb: 2 }}
           />
@@ -179,14 +181,21 @@ const RoleManagement = () => {
       </Paper>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           Are you sure you want to delete the role "{selectedRole?.roleName}"?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteConfirm} color="error" disabled={isLoading}>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            disabled={isLoading}
+          >
             {isLoading ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>

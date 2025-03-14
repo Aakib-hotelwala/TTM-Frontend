@@ -64,20 +64,24 @@ const Header = ({ title }) => {
       </div>
 
       <div className="flex items-center gap-4">
-        <span className="text-lg font-semibold">{title}</span>
+        <span className="text-lg font-semibold">Role:</span>
 
-        {auth?.roleIds?.length > 1 && (
+        {auth?.roleIds?.length > 0 && (
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="bg-gray-800 hover:bg-gray-600 text-white border border-gray-600 rounded-lg px-4 py-2 flex items-center justify-between w-28 shadow-md focus:outline-none cursor-pointer"
+              onClick={() => auth.roleIds.length > 1 && setIsOpen(!isOpen)}
+              className={`bg-gray-800 hover:bg-gray-600 text-white border border-gray-600 rounded-lg px-4 py-2 flex items-center justify-between w-28 shadow-md focus:outline-none cursor-pointer ${
+                auth.roleIds.length === 1 ? "cursor-default" : ""
+              }`}
             >
               {selectedRole === "ttm" || selectedRole === "hod"
                 ? selectedRole.toUpperCase()
                 : selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
-              <FaChevronDown className="ml-2 text-sm" />
+              {auth.roleIds.length > 1 && (
+                <FaChevronDown className="ml-2 text-sm" />
+              )}
             </button>
-            {isOpen && (
+            {isOpen && auth.roleIds.length > 1 && (
               <ul className="absolute top-12 left-0 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-lg overflow-hidden z-50">
                 {auth.roleIds.map((roleId) => (
                   <li

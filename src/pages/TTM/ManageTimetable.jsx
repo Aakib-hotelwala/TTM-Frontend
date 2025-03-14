@@ -15,6 +15,7 @@ import {
   IconButton,
   CircularProgress,
   TextField,
+  TablePagination,
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -41,6 +42,8 @@ const ManageTimetable = () => {
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [timetableToDelete, setTimetableToDelete] = useState(null);
   const [timetables, setTimetables] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
   // Fetch timetable data
   const fetchTimetable = async () => {
@@ -55,6 +58,9 @@ const ManageTimetable = () => {
         `${API_BASE_URL}/Timetable/getTimetable`,
         {
           params: { userId: auth.userId },
+          headers: {
+            Authorization: `Bearer ${auth.token}`, // Include the token for authentication
+          },
         }
       );
 
@@ -131,6 +137,15 @@ const ManageTimetable = () => {
     });
 
     setFilteredData(sortedData);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0); // Reset page when rows per page changes
   };
 
   const columns = [
@@ -302,49 +317,61 @@ const ManageTimetable = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredData.map((item, index) => (
-                <TableRow key={item.timetableId}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>{item.academicYearCode || "N/A"}</TableCell>
-                  <TableCell>{item.facultyName || "N/A"}</TableCell>
-                  <TableCell>{item.departmentName || "N/A"}</TableCell>
-                  <TableCell>{item.programName || "N/A"}</TableCell>
-                  <TableCell>{item.academicClassName || "N/A"}</TableCell>
-                  <TableCell>{item.divisionName || "N/A"}</TableCell>
-                  <TableCell>{item.batchName || "N/A"}</TableCell>
-                  <TableCell>{item.subjectName || "N/A"}</TableCell>
-                  <TableCell>{item.dayName || "N/A"}</TableCell>
-                  <TableCell>{item.timeslot || "N/A"}</TableCell>
-                  <TableCell>{item.staffName || "N/A"}</TableCell>
-                  <TableCell>{item.locationName || "N/A"}</TableCell>
-                  <TableCell>
-                    <IconButton
-                      color="primary"
-                      onClick={() => {
-                        setSelectedTimetable(item); // Pass the full item (timetable) data
-                        setOpenModal(true);
-                      }}
-                    >
-                      <Edit />
-                    </IconButton>
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setTimetableToDelete(item.timetableId);
-                        setOpenDeleteModal(true);
-                      }}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredData
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((item, index) => (
+                  <TableRow key={item.timetableId}>
+                    <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                    <TableCell>{item.academicYearCode || "N/A"}</TableCell>
+                    <TableCell>{item.facultyName || "N/A"}</TableCell>
+                    <TableCell>{item.departmentName || "N/A"}</TableCell>
+                    <TableCell>{item.programName || "N/A"}</TableCell>
+                    <TableCell>{item.academicClassName || "N/A"}</TableCell>
+                    <TableCell>{item.divisionName || "N/A"}</TableCell>
+                    <TableCell>{item.batchName || "N/A"}</TableCell>
+                    <TableCell>{item.subjectName || "N/A"}</TableCell>
+                    <TableCell>{item.dayName || "N/A"}</TableCell>
+                    <TableCell>{item.timeslot || "N/A"}</TableCell>
+                    <TableCell>{item.staffName || "N/A"}</TableCell>
+                    <TableCell>{item.locationName || "N/A"}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          setSelectedTimetable(item);
+                          setOpenModal(true);
+                        }}
+                      >
+                        <Edit />
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          setTimetableToDelete(item.timetableId);
+                          setOpenDeleteModal(true);
+                        }}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      <TablePagination
+        component="div"
+        count={filteredData.length}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+      />
 
       {/* Modals */}
       <AddTimetableModal

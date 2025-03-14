@@ -16,7 +16,7 @@ import toast from "react-hot-toast";
 
 const API_BASE_URL = "https://localhost:7073/api";
 
-const useFetchData = (endpoint, dependencies = []) => {
+const useFetchData = (endpoint, auth, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +24,11 @@ const useFetchData = (endpoint, dependencies = []) => {
     if (!endpoint) return;
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
+      const response = await axios.get(`${API_BASE_URL}/${endpoint}`, {
+        headers: {
+          Authorization: `Bearer ${auth?.token}`,
+        },
+      });
       setData(response.data?.data || response.data);
     } catch (error) {
       console.error(`Error fetching ${endpoint}:`, error);
@@ -59,7 +63,12 @@ const UpdateTimetableModal = ({
     const fetchTimetableById = async () => {
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/Timetable/getTimetableById?timetableId=${timetableId}`
+          `${API_BASE_URL}/Timetable/getTimetableById?timetableId=${timetableId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
         const timetableData = response.data;
         setFormData({
@@ -89,8 +98,10 @@ const UpdateTimetableModal = ({
   }, [timetableId]);
 
   // Fetch all faculties
-  const { data: allFaculties, loading: facultiesLoading } =
-    useFetchData("Academic/Faculties");
+  const { data: allFaculties, loading: facultiesLoading } = useFetchData(
+    "Academic/Faculties",
+    auth
+  );
 
   // Filter user's faculty
   const faculties1 = allFaculties?.filter(
@@ -102,6 +113,7 @@ const UpdateTimetableModal = ({
     formData.facultyId1
       ? `Academic/departments?facultyId=${formData.facultyId1}`
       : null,
+    auth,
     [formData.facultyId1]
   );
 
@@ -115,6 +127,7 @@ const UpdateTimetableModal = ({
     formData.facultyId1
       ? `Academic/current_academic_year?facultyId=${formData.facultyId1}`
       : null,
+    auth,
     [formData.facultyId1]
   );
 
@@ -123,6 +136,7 @@ const UpdateTimetableModal = ({
     formData.departmentId1
       ? `Academic/programs?departmentId=${formData.departmentId1}`
       : null,
+    auth,
     [formData.departmentId1]
   );
 
@@ -131,6 +145,7 @@ const UpdateTimetableModal = ({
     formData.programId
       ? `Academic/classes?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
@@ -139,6 +154,7 @@ const UpdateTimetableModal = ({
     formData.academicClassId
       ? `Division/divisions?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId]
   );
 
@@ -147,6 +163,7 @@ const UpdateTimetableModal = ({
     formData.academicClassId
       ? `Academic/subjects?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId] // ✅ Correct dependency
   );
 
@@ -155,6 +172,7 @@ const UpdateTimetableModal = ({
     formData.divisionId
       ? `Division/batches?divisionId=${formData.divisionId}`
       : null,
+    auth,
     [formData.divisionId] // ✅ Correct dependency
   );
 
@@ -167,13 +185,14 @@ const UpdateTimetableModal = ({
   const isBatchEnabled = selectedSubject?.subjectTypeName === "Practical";
 
   // Fetch Days
-  const { data: days } = useFetchData("Timetable/days");
+  const { data: days } = useFetchData("Timetable/days", auth);
 
   // Fetch all time slots based on selected program
   const { data: allTimeSlots, loading: loadingTimeSlots } = useFetchData(
     formData.programId
       ? `Timetable/timeslots?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
@@ -183,6 +202,7 @@ const UpdateTimetableModal = ({
     refetch: refetchTimetable,
   } = useFetchData(
     auth.userId ? `Timetable/getTimetable?userId=${auth.userId}` : null,
+    auth,
     [auth.userId]
   );
 
@@ -275,7 +295,12 @@ const UpdateTimetableModal = ({
       try {
         // Fetch locations for selected department
         const { data: locations } = await axios.get(
-          `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`
+          `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
 
         let availableLocations = locations;
@@ -321,13 +346,14 @@ const UpdateTimetableModal = ({
   ]);
 
   // Faculties-2:- Fetch faculties
-  const { data: faculties2 } = useFetchData("Academic/Faculties");
+  const { data: faculties2 } = useFetchData("Academic/Faculties", auth);
 
   // Departments-2 Fetch departments based on selected faculty
   const { data: departments2 } = useFetchData(
     formData.facultyId2
       ? `Academic/departments?facultyId=${formData.facultyId2}`
       : null,
+    auth,
     [formData.facultyId2]
   );
 
@@ -342,7 +368,12 @@ const UpdateTimetableModal = ({
       try {
         // Fetch teachers based on selected department
         const { data: staffMembers } = await axios.get(
-          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`
+          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
 
         let availableTeachers = staffMembers;
@@ -421,6 +452,11 @@ const UpdateTimetableModal = ({
       } else if (key === "divisionId") {
         newFormData.batchId = null;
         newFormData.timeSlotId = null;
+      } else if (key === "batchId") {
+        newFormData.timeSlotId = null;
+      } else if (key === "timeSlotId") {
+        newFormData.locationId = null;
+        newFormData.staffId = null;
       } else if (key === "facultyId2") {
         newFormData.departmentId2 = null;
         newFormData.staffId = null;
@@ -477,7 +513,11 @@ const UpdateTimetableModal = ({
 
     try {
       // Proceed with the update if no conflicts
-      await axios.put(`${API_BASE_URL}/Timetable/update`, timetableData);
+      await axios.put(`${API_BASE_URL}/Timetable/update`, timetableData, {
+        headers: {
+          Authorization: `Bearer ${auth?.token}`,
+        },
+      });
       toast.success("Timetable updated successfully!");
       onUpdateSuccess?.();
       refetchTimetable();
@@ -715,10 +755,7 @@ const UpdateTimetableModal = ({
                 )}
                 disabled={
                   !formData?.programId ||
-                  (formData?.subjectType === "practical" &&
-                    !formData?.batchId) ||
-                  (formData?.subjectType !== "practical" &&
-                    !formData.divisionId)
+                  (isBatchEnabled ? !formData?.batchId : !formData?.divisionId)
                 }
               />
             </Box>
@@ -742,7 +779,7 @@ const UpdateTimetableModal = ({
                 renderInput={(params) => (
                   <TextField {...params} label="Select Location" fullWidth />
                 )}
-                disabled={!formData?.departmentId1 && !formData?.timeSlotId}
+                disabled={!formData?.departmentId1 || !formData?.timeSlotId}
               />
             </Box>
 
@@ -814,7 +851,7 @@ const UpdateTimetableModal = ({
                   renderInput={(params) => (
                     <TextField {...params} label="Select Teacher" fullWidth />
                   )}
-                  disabled={!formData?.departmentId2 && !formData?.timeSlotId}
+                  disabled={!formData?.departmentId2 || !formData?.timeSlotId}
                 />
               </Box>
             </Box>
