@@ -19,7 +19,10 @@
     "file-saver": "^2.0.5",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.0",
+<<<<<<< HEAD
     "pdf-lib": "^1.17.1",
+=======
+>>>>>>> f3720a8eda760786f9c548f3433fe02afdb4c15a
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.5.1",
