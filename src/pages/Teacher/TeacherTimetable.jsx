@@ -30,6 +30,7 @@ const TeacherTimetable = () => {
   const [timeSlots, setTimeSlots] = useState([]);
   const { auth } = useContext(AuthContext);
 
+  // Fetch Programs on render
   useEffect(() => {
     fetchPrograms();
   }, []);
