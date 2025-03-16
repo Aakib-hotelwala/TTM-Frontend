@@ -47,7 +47,12 @@ const ViewTimetableTTM = () => {
   const fetchPrograms = async () => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Academic/programs?departmentId=${auth.departmentId}`
+        `https://localhost:7073/api/Academic/programs?departmentId=${auth.departmentId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
       setPrograms(response.data);
     } catch (error) {
@@ -58,7 +63,12 @@ const ViewTimetableTTM = () => {
   const fetchClasses = async (programId) => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Academic/classes?programId=${programId}`
+        `https://localhost:7073/api/Academic/classes?programId=${programId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
       setClasses(response.data);
     } catch (error) {
@@ -69,7 +79,12 @@ const ViewTimetableTTM = () => {
   const fetchTimetable = async (programId) => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Timetable/getTimetable?userId=${auth.userId}&programId=${programId}`
+        `https://localhost:7073/api/Timetable/getTimetable?userId=${auth.userId}&programId=${programId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
       setTimetable(response.data);
     } catch (error) {
@@ -80,8 +95,14 @@ const ViewTimetableTTM = () => {
   const fetchDays = async () => {
     try {
       const response = await axios.get(
-        "https://localhost:7073/api/Timetable/days"
+        "https://localhost:7073/api/Timetable/days",
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
+      console.log(response.data);
       setDays(response.data);
     } catch (error) {
       console.error("Error fetching days:", error);
@@ -91,7 +112,12 @@ const ViewTimetableTTM = () => {
   const fetchTimeSlots = async (programId) => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Timetable/timeslots?programId=${programId}`
+        `https://localhost:7073/api/Timetable/timeslots?programId=${programId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
       setTimeSlots(response.data);
     } catch (error) {

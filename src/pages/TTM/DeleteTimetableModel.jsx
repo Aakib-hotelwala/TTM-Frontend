@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-hot-toast";
-
+import { AuthContext } from "../../context/AuthContext";
 const API_BASE_URL = "https://localhost:7073/api";
 
 const DeleteTimetableModal = ({
@@ -18,6 +18,7 @@ const DeleteTimetableModal = ({
   timetableId,
   onDeleteSuccess,
 }) => {
+  const { auth } = useContext(AuthContext);
   const handleDelete = async () => {
     if (!timetableId) {
       toast.error("Invalid timetable ID.");
@@ -26,7 +27,12 @@ const DeleteTimetableModal = ({
 
     try {
       const response = await axios.delete(
-        `${API_BASE_URL}/Timetable/delete/${timetableId}`
+        `${API_BASE_URL}/Timetable/delete/${timetableId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
       );
       if (response.status === 200 || response.status === 204) {
         toast.success("Timetable deleted successfully!");

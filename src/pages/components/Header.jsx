@@ -10,15 +10,6 @@ const Header = ({ title }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null); // Ref for dropdown
 
-  const roleMap = {
-    1: "admin",
-    2: "dean",
-    3: "hod",
-    4: "ttm",
-    5: "teacher",
-    6: "student",
-  };
-
   // Logout function: clears auth context and navigates to login page
   const handleLogout = () => {
     logout();
@@ -27,9 +18,9 @@ const Header = ({ title }) => {
 
   // Handles role change: updates selected role, switches role in context, and redirects to the new homepage
   const handleRoleChange = (newRole) => {
-    setSelectedRole(newRole);
-    switchRole(newRole);
-    navigate(`/${newRole}-homepage`);
+    setSelectedRole(newRole); // Preserve original case
+    switchRole(newRole); // Don't convert to lowercase
+    navigate(`/${newRole.toLowerCase()}-homepage`); // Only lowercase for URL
     setIsOpen(false);
   };
 
@@ -59,36 +50,36 @@ const Header = ({ title }) => {
           src="/src/assets/Image.png"
           alt="Logo"
           className="w-16 h-16 object-contain filter invert cursor-pointer"
-          onClick={() => navigate(`/${selectedRole}-homepage`)}
+          onClick={() => navigate(`/${selectedRole?.toLowerCase()}-homepage`)}
         />
       </div>
 
       <div className="flex items-center gap-4">
-        <span className="text-lg font-semibold">{title}</span>
+        <span className="text-lg font-semibold">Role:</span>
 
-        {auth?.roleIds?.length > 1 && (
+        {auth?.roleNames?.length > 0 && (
           <div className="relative" ref={dropdownRef}>
             <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="bg-gray-800 hover:bg-gray-600 text-white border border-gray-600 rounded-lg px-4 py-2 flex items-center justify-between w-28 shadow-md focus:outline-none cursor-pointer"
+              onClick={() => auth.roleNames.length > 1 && setIsOpen(!isOpen)}
+              className={`bg-gray-800 hover:bg-gray-600 text-white border border-gray-600 rounded-lg px-4 py-2 flex items-center justify-between w-28 shadow-md focus:outline-none cursor-pointer ${
+                auth.roleNames.length === 1 ? "cursor-default" : ""
+              }`}
             >
-              {selectedRole === "ttm" || selectedRole === "hod"
-                ? selectedRole.toUpperCase()
-                : selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}
-              <FaChevronDown className="ml-2 text-sm" />
+              {selectedRole}
+              {auth.roleNames.length > 1 && (
+                <FaChevronDown className="ml-2 text-sm" />
+              )}
             </button>
-            {isOpen && (
+
+            {isOpen && auth.roleNames.length > 1 && (
               <ul className="absolute top-12 left-0 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-lg overflow-hidden z-50">
-                {auth.roleIds.map((roleId) => (
+                {auth.roleNames.map((roleName, index) => (
                   <li
-                    key={roleId}
-                    onClick={() => handleRoleChange(roleMap[roleId])}
+                    key={index}
+                    onClick={() => handleRoleChange(roleName)}
                     className="px-4 py-3 text-white hover:bg-blue-600 transition-all cursor-pointer"
                   >
-                    {roleMap[roleId] === "ttm" || roleMap[roleId] === "hod"
-                      ? roleMap[roleId].toUpperCase()
-                      : roleMap[roleId].charAt(0).toUpperCase() +
-                        roleMap[roleId].slice(1)}
+                    {roleName}
                   </li>
                 ))}
               </ul>

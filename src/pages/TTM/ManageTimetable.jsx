@@ -15,6 +15,7 @@ import {
   IconButton,
   CircularProgress,
   TextField,
+  TablePagination,
 } from "@mui/material";
 import { Edit, Delete } from "@mui/icons-material";
 import Autocomplete from "@mui/material/Autocomplete";
@@ -22,6 +23,8 @@ import AddTimetableModal from "./AddTimetableModel";
 import UpdateTimetableModal from "./UpdateTimetableModel";
 import DeleteTimetableModal from "./DeleteTimetableModel";
 import { AuthContext } from "../../context/AuthContext";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const API_BASE_URL = "https://localhost:7073/api";
 
@@ -39,6 +42,8 @@ const ManageTimetable = () => {
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [timetableToDelete, setTimetableToDelete] = useState(null);
   const [timetables, setTimetables] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
 
   // Fetch timetable data
   const fetchTimetable = async () => {
@@ -53,6 +58,9 @@ const ManageTimetable = () => {
         `${API_BASE_URL}/Timetable/getTimetable`,
         {
           params: { userId: auth.userId },
+          headers: {
+            Authorization: `Bearer ${auth.token}`, // Include the token for authentication
+          },
         }
       );
 
@@ -131,6 +139,15 @@ const ManageTimetable = () => {
     setFilteredData(sortedData);
   };
 
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0); // Reset page when rows per page changes
+  };
+
   const columns = [
     { label: "Academic Year", key: "academicYearCode" },
     { label: "Faculty", key: "facultyName" },
@@ -145,6 +162,39 @@ const ManageTimetable = () => {
     { label: "Teacher", key: "staffName" },
     { label: "Location", key: "locationName" },
   ];
+
+  const downloadExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      filteredData.map((item, index) => ({
+        "Sr. No": index + 1,
+        "Academic Year": item.academicYearCode || "N/A",
+        Faculty: item.facultyName || "N/A",
+        Department: item.departmentName || "N/A",
+        Program: item.programName || "N/A",
+        Class: item.academicClassName || "N/A",
+        Division: item.divisionName || "N/A",
+        Batch: item.batchName || "N/A",
+        Subject: item.subjectName || "N/A",
+        Day: item.dayName || "N/A",
+        "Time Slot": item.timeslot || "N/A",
+        Teacher: item.staffName || "N/A",
+        Location: item.locationName || "N/A",
+      }))
+    );
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Timetable");
+
+    // Generate Excel file and trigger download
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(data, "Timetable.xlsx");
+  };
 
   return (
     <div>
@@ -170,50 +220,66 @@ const ManageTimetable = () => {
         </Button>
       </Box>
 
-      {/* Search Filters */}
-      <Box display="flex" gap={2} mb={2} alignItems="center">
+      <Box
+        display="flex"
+        gap={2}
+        mb={2}
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        {/* Search Filters */}
+        <Box display="flex" gap={2} mb={2} alignItems="center">
+          <Button
+            variant="contained"
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+            onClick={() => {
+              setSelectedClass(null);
+              setSelectedTeacher(null);
+              setSelectedLocation(null);
+            }}
+          >
+            Clear Filters
+          </Button>
+          {[
+            {
+              label: "Search Class",
+              value: selectedClass,
+              setter: setSelectedClass,
+              options: classOptions,
+            },
+            {
+              label: "Search Teacher",
+              value: selectedTeacher,
+              setter: setSelectedTeacher,
+              options: teacherOptions,
+            },
+            {
+              label: "Search Location",
+              value: selectedLocation,
+              setter: setSelectedLocation,
+              options: locationOptions,
+            },
+          ].map(({ label, value, setter, options }) => (
+            <Autocomplete
+              key={label}
+              options={options}
+              value={value}
+              onChange={(event, newValue) => setter(newValue)}
+              renderInput={(params) => (
+                <TextField {...params} label={label} variant="outlined" />
+              )}
+              sx={{ width: 250 }}
+            />
+          ))}
+        </Box>
+
         <Button
           variant="contained"
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-          onClick={() => {
-            setSelectedClass(null);
-            setSelectedTeacher(null);
-            setSelectedLocation(null);
-          }}
+          className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+          onClick={downloadExcel}
         >
-          Clear Filters
+          Download Entries
         </Button>
-        {[
-          {
-            label: "Search Class",
-            value: selectedClass,
-            setter: setSelectedClass,
-            options: classOptions,
-          },
-          {
-            label: "Search Teacher",
-            value: selectedTeacher,
-            setter: setSelectedTeacher,
-            options: teacherOptions,
-          },
-          {
-            label: "Search Location",
-            value: selectedLocation,
-            setter: setSelectedLocation,
-            options: locationOptions,
-          },
-        ].map(({ label, value, setter, options }) => (
-          <Autocomplete
-            key={label}
-            options={options}
-            value={value}
-            onChange={(event, newValue) => setter(newValue)}
-            renderInput={(params) => (
-              <TextField {...params} label={label} variant="outlined" />
-            )}
-            sx={{ width: 250 }}
-          />
-        ))}
       </Box>
 
       {loading ? (
@@ -251,49 +317,61 @@ const ManageTimetable = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredData.map((item, index) => (
-                <TableRow key={item.timetableId}>
-                  <TableCell>{index + 1}</TableCell>
-                  <TableCell>{item.academicYearCode || "N/A"}</TableCell>
-                  <TableCell>{item.facultyName || "N/A"}</TableCell>
-                  <TableCell>{item.departmentName || "N/A"}</TableCell>
-                  <TableCell>{item.programName || "N/A"}</TableCell>
-                  <TableCell>{item.academicClassName || "N/A"}</TableCell>
-                  <TableCell>{item.divisionName || "N/A"}</TableCell>
-                  <TableCell>{item.batchName || "N/A"}</TableCell>
-                  <TableCell>{item.subjectName || "N/A"}</TableCell>
-                  <TableCell>{item.dayName || "N/A"}</TableCell>
-                  <TableCell>{item.timeslot || "N/A"}</TableCell>
-                  <TableCell>{item.staffName || "N/A"}</TableCell>
-                  <TableCell>{item.locationName || "N/A"}</TableCell>
-                  <TableCell>
-                    <IconButton
-                      color="primary"
-                      onClick={() => {
-                        setSelectedTimetable(item); // Pass the full item (timetable) data
-                        setOpenModal(true);
-                      }}
-                    >
-                      <Edit />
-                    </IconButton>
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setTimetableToDelete(item.timetableId);
-                        setOpenDeleteModal(true);
-                      }}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredData
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((item, index) => (
+                  <TableRow key={item.timetableId}>
+                    <TableCell>{page * rowsPerPage + index + 1}</TableCell>
+                    <TableCell>{item.academicYearCode || "N/A"}</TableCell>
+                    <TableCell>{item.facultyName || "N/A"}</TableCell>
+                    <TableCell>{item.departmentName || "N/A"}</TableCell>
+                    <TableCell>{item.programName || "N/A"}</TableCell>
+                    <TableCell>{item.academicClassName || "N/A"}</TableCell>
+                    <TableCell>{item.divisionName || "N/A"}</TableCell>
+                    <TableCell>{item.batchName || "N/A"}</TableCell>
+                    <TableCell>{item.subjectName || "N/A"}</TableCell>
+                    <TableCell>{item.dayName || "N/A"}</TableCell>
+                    <TableCell>{item.timeslot || "N/A"}</TableCell>
+                    <TableCell>{item.staffName || "N/A"}</TableCell>
+                    <TableCell>{item.locationName || "N/A"}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          setSelectedTimetable(item);
+                          setOpenModal(true);
+                        }}
+                      >
+                        <Edit />
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          setTimetableToDelete(item.timetableId);
+                          setOpenDeleteModal(true);
+                        }}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </TableContainer>
       )}
+
+      <TablePagination
+        component="div"
+        count={filteredData.length}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        rowsPerPageOptions={[5, 10, 25, 50, 100]}
+      />
 
       {/* Modals */}
       <AddTimetableModal

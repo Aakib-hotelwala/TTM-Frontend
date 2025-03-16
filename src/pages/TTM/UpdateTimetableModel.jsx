@@ -16,29 +16,32 @@ import toast from "react-hot-toast";
 
 const API_BASE_URL = "https://localhost:7073/api";
 
-const useFetchData = (endpoint, dependencies = []) => {
+const useFetchData = (endpoint, auth, dependencies = []) => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const fetchData = async () => {
     if (!endpoint) return;
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/${endpoint}`, {
+        headers: {
+          Authorization: `Bearer ${auth?.token}`,
+        },
+      });
+      setData(response.data?.data || response.data);
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      setData([]);
+    }
+    setLoading(false);
+  };
 
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(`${API_BASE_URL}/${endpoint}`);
-        setData(response.data?.data || response.data);
-      } catch (error) {
-        console.error(`Error fetching ${endpoint}:`, error);
-        setData([]);
-      }
-      setLoading(false);
-    };
-
+  useEffect(() => {
     fetchData();
   }, dependencies);
 
-  return { data, loading };
+  return { data, loading, refetch: fetchData };
 };
 
 const UpdateTimetableModal = ({
@@ -49,6 +52,9 @@ const UpdateTimetableModal = ({
 }) => {
   const [formData, setFormData] = useState({});
   const { auth } = useContext(AuthContext); // Get facultyId and departmentId from auth context
+  const [availableLocations, setAvailableLocations] = useState([]);
+  const [availableTeachers, setAvailableTeachers] = useState([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
 
   // Fetch timetable by ID
   useEffect(() => {
@@ -57,7 +63,12 @@ const UpdateTimetableModal = ({
     const fetchTimetableById = async () => {
       try {
         const response = await axios.get(
-          `${API_BASE_URL}/Timetable/getTimetableById?timetableId=${timetableId}`
+          `${API_BASE_URL}/Timetable/getTimetableById?timetableId=${timetableId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
         const timetableData = response.data;
         setFormData({
@@ -87,8 +98,10 @@ const UpdateTimetableModal = ({
   }, [timetableId]);
 
   // Fetch all faculties
-  const { data: allFaculties, loading: facultiesLoading } =
-    useFetchData("Academic/Faculties");
+  const { data: allFaculties, loading: facultiesLoading } = useFetchData(
+    "Academic/Faculties",
+    auth
+  );
 
   // Filter user's faculty
   const faculties1 = allFaculties?.filter(
@@ -100,6 +113,7 @@ const UpdateTimetableModal = ({
     formData.facultyId1
       ? `Academic/departments?facultyId=${formData.facultyId1}`
       : null,
+    auth,
     [formData.facultyId1]
   );
 
@@ -113,6 +127,7 @@ const UpdateTimetableModal = ({
     formData.facultyId1
       ? `Academic/current_academic_year?facultyId=${formData.facultyId1}`
       : null,
+    auth,
     [formData.facultyId1]
   );
 
@@ -121,6 +136,7 @@ const UpdateTimetableModal = ({
     formData.departmentId1
       ? `Academic/programs?departmentId=${formData.departmentId1}`
       : null,
+    auth,
     [formData.departmentId1]
   );
 
@@ -129,6 +145,7 @@ const UpdateTimetableModal = ({
     formData.programId
       ? `Academic/classes?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
@@ -137,6 +154,7 @@ const UpdateTimetableModal = ({
     formData.academicClassId
       ? `Division/divisions?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId]
   );
 
@@ -145,6 +163,7 @@ const UpdateTimetableModal = ({
     formData.academicClassId
       ? `Academic/subjects?academicClassId=${formData.academicClassId}`
       : null,
+    auth,
     [formData.academicClassId] // ✅ Correct dependency
   );
 
@@ -153,6 +172,7 @@ const UpdateTimetableModal = ({
     formData.divisionId
       ? `Division/batches?divisionId=${formData.divisionId}`
       : null,
+    auth,
     [formData.divisionId] // ✅ Correct dependency
   );
 
@@ -165,44 +185,238 @@ const UpdateTimetableModal = ({
   const isBatchEnabled = selectedSubject?.subjectTypeName === "Practical";
 
   // Fetch Days
-  const { data: days } = useFetchData("Timetable/days");
+  const { data: days } = useFetchData("Timetable/days", auth);
 
-  // Fetch Classes based on selected program
-  const { data: timeSlots } = useFetchData(
+  // Fetch all time slots based on selected program
+  const { data: allTimeSlots, loading: loadingTimeSlots } = useFetchData(
     formData.programId
       ? `Timetable/timeslots?programId=${formData.programId}`
       : null,
+    auth,
     [formData.programId]
   );
 
-  // Fetch locations based on selected department
-  const { data: locations } = useFetchData(
-    formData.departmentId1
-      ? `Location/locations?departmentId=${formData.departmentId1}`
-      : null,
-    [formData.departmentId1]
+  const {
+    data: timetableData,
+    loading: loadingTimetable,
+    refetch: refetchTimetable,
+  } = useFetchData(
+    auth.userId ? `Timetable/getTimetable?userId=${auth.userId}` : null,
+    auth,
+    [auth.userId]
   );
 
+  useEffect(() => {
+    console.log("All Time Slots:", allTimeSlots);
+    console.log("Timetable Data:", timetableData);
+
+    if (!Array.isArray(allTimeSlots) || allTimeSlots.length === 0) {
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    if (!Array.isArray(timetableData)) {
+      console.error("Invalid timetable data:", timetableData);
+      setAvailableTimeSlots([]);
+      return;
+    }
+
+    if (!formData.dayId || (!formData.divisionId && !formData.batchId)) {
+      setAvailableTimeSlots(allTimeSlots);
+      return;
+    }
+
+    const isPractical = selectedSubject?.subjectTypeName === "Practical";
+
+    // Identify currently selected time slot's timetable entry
+    const currentEntry = timetableData.find(
+      (entry) =>
+        entry.dayId === formData.dayId &&
+        (isPractical
+          ? entry.batchId === formData.batchId
+          : entry.divisionId === formData.divisionId) &&
+        entry.timeSlotId === formData.timeSlotId
+    );
+
+    // Get occupied time slots, excluding the current entry's time slot for updates
+    const occupiedTimeSlotIds = timetableData
+      .filter((entry) => {
+        const matchesDay = entry.dayId === formData.dayId;
+        const matchesBatchOrDivision = isPractical
+          ? entry.batchId === formData.batchId
+          : entry.divisionId === formData.divisionId;
+
+        // Exclude current entry if updating an existing record
+        const isCurrentEntry =
+          currentEntry && entry.timeSlotId === currentEntry.timeSlotId;
+
+        return matchesDay && matchesBatchOrDivision && !isCurrentEntry;
+      })
+      .map((entry) => entry.timeSlotId);
+
+    console.log(
+      isPractical
+        ? "Occupied Time Slot IDs for Batch & Day:"
+        : "Occupied Time Slot IDs for Division & Day:",
+      occupiedTimeSlotIds
+    );
+
+    // Filter time slots: exclude occupied ones (except for the pre-selected one)
+    const nonConflictingTimeSlots = allTimeSlots.filter((timeSlot) => {
+      const isOccupied = occupiedTimeSlotIds.includes(timeSlot.timeSlotId);
+      const isPreSelected = timeSlot.timeSlotId === formData.timeSlotId;
+      return !isOccupied || isPreSelected;
+    });
+
+    console.log(
+      "Filtered Available Time Slots (with pre-selection):",
+      nonConflictingTimeSlots
+    );
+
+    setAvailableTimeSlots(nonConflictingTimeSlots);
+  }, [
+    allTimeSlots,
+    timetableData,
+    formData.divisionId,
+    formData.dayId,
+    formData.batchId,
+    formData.timeSlotId,
+    selectedSubject,
+  ]);
+
+  // Fetch locations based on selected department
+  useEffect(() => {
+    const fetchAvailableLocations = async () => {
+      if (!formData.departmentId1) {
+        setAvailableLocations([]);
+        return;
+      }
+
+      try {
+        // Fetch locations for selected department
+        const { data: locations } = await axios.get(
+          `${API_BASE_URL}/Location/locations?departmentId=${formData.departmentId1}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
+        );
+
+        let availableLocations = locations;
+
+        if (formData.dayId && formData.timeSlotId) {
+          // Get occupied locations for selected day and time slot
+          const occupiedLocationIds = timetableData
+            .filter(
+              (entry) =>
+                entry.dayId === formData.dayId &&
+                entry.timeSlotId === formData.timeSlotId &&
+                entry.locationId !== formData.locationId // Exclude currently selected location
+            )
+            .map((entry) => entry.locationId);
+
+          console.log("Occupied Location IDs:", occupiedLocationIds);
+
+          // Filter out occupied locations, keeping pre-selected one
+          availableLocations = locations.filter((location) => {
+            const isOccupied = occupiedLocationIds.includes(
+              location.locationId
+            );
+            const isPreSelected = location.locationId === formData.locationId;
+            return !isOccupied || isPreSelected;
+          });
+        }
+
+        console.log("Filtered Available Locations:", availableLocations);
+        setAvailableLocations(availableLocations);
+      } catch (error) {
+        console.error("Error fetching available locations:", error);
+        setAvailableLocations([]);
+      }
+    };
+
+    fetchAvailableLocations();
+  }, [
+    formData.departmentId1,
+    formData.dayId,
+    formData.timeSlotId,
+    formData.locationId,
+    timetableData, // Ensure updates reflect timetable changes
+  ]);
+
   // Faculties-2:- Fetch faculties
-  const { data: faculties2 } = useFetchData("Academic/Faculties");
+  const { data: faculties2 } = useFetchData("Academic/Faculties", auth);
 
   // Departments-2 Fetch departments based on selected faculty
   const { data: departments2 } = useFetchData(
     formData.facultyId2
       ? `Academic/departments?facultyId=${formData.facultyId2}`
       : null,
+    auth,
     [formData.facultyId2]
   );
 
-  // Fetch Teachers based on selected Department
-  const { data: staffMembers } = useFetchData(
-    formData.departmentId2
-      ? `Staff/teachers?departmentId=${formData.departmentId2}`
-      : null,
-    [formData.departmentId2]
-  );
+  // Fetch teachers based on selected department and filter conflicts
+  useEffect(() => {
+    const fetchAvailableTeachers = async () => {
+      if (!formData.departmentId2) {
+        setAvailableTeachers([]);
+        return;
+      }
 
-  const handleChange = (key, value) => {
+      try {
+        // Fetch teachers based on selected department
+        const { data: staffMembers } = await axios.get(
+          `${API_BASE_URL}/Staff/teachers?departmentId=${formData.departmentId2}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
+        );
+
+        let availableTeachers = staffMembers;
+
+        if (formData.dayId && formData.timeSlotId) {
+          // Get occupied teacher IDs for selected day and time slot
+          const occupiedTeacherIds = timetableData
+            .filter(
+              (entry) =>
+                entry.dayId === formData.dayId &&
+                entry.timeSlotId === formData.timeSlotId &&
+                entry.staffId !== formData.staffId // Exclude pre-selected teacher
+            )
+            .map((entry) => entry.staffId);
+
+          console.log("Occupied Teacher IDs:", occupiedTeacherIds);
+
+          // Filter out occupied teachers, keeping pre-selected one
+          availableTeachers = staffMembers.filter((teacher) => {
+            const isOccupied = occupiedTeacherIds.includes(teacher.staffId);
+            const isPreSelected = teacher.staffId === formData.staffId;
+            return !isOccupied || isPreSelected;
+          });
+        }
+
+        console.log("Filtered Available Teachers:", availableTeachers);
+        setAvailableTeachers(availableTeachers);
+      } catch (error) {
+        console.error("Error fetching available teachers:", error);
+        setAvailableTeachers([]);
+      }
+    };
+
+    fetchAvailableTeachers();
+  }, [
+    formData.departmentId2,
+    formData.dayId,
+    formData.timeSlotId,
+    formData.staffId,
+    timetableData, // Ensure updates reflect timetable changes
+  ]);
+
+  const handleChange = async (key, value) => {
     setFormData((prev) => {
       const newFormData = { ...prev, [key]: value };
 
@@ -237,6 +451,12 @@ const UpdateTimetableModal = ({
         newFormData.batchId = null;
       } else if (key === "divisionId") {
         newFormData.batchId = null;
+        newFormData.timeSlotId = null;
+      } else if (key === "batchId") {
+        newFormData.timeSlotId = null;
+      } else if (key === "timeSlotId") {
+        newFormData.locationId = null;
+        newFormData.staffId = null;
       } else if (key === "facultyId2") {
         newFormData.departmentId2 = null;
         newFormData.staffId = null;
@@ -292,73 +512,15 @@ const UpdateTimetableModal = ({
     };
 
     try {
-      // Conflict checks, excluding the current timetable entry
-      const [divisionConflict, staffConflict, locationConflict] =
-        await Promise.all([
-          axios.post(`${API_BASE_URL}/Timetable/check-timeslot`, {
-            timetableId: formData.timetableId,
-            divisionId: formData.divisionId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-            ...(isPractical && { batchId: formData.batchId }),
-          }),
-          axios.post(`${API_BASE_URL}/Timetable/check-staff`, {
-            timetableId: formData.timetableId,
-            staffId: formData.staffId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-          }),
-          axios.post(`${API_BASE_URL}/Timetable/check-location`, {
-            timetableId: formData.timetableId,
-            locationId: formData.locationId,
-            dayId: formData.dayId,
-            timeSlotId: formData.timeSlotId,
-          }),
-        ]);
-
-      if (
-        divisionConflict.data?.conflict &&
-        divisionConflict.data?.conflictingTimetableId !== formData.timetableId
-      ) {
-        toast.error("Division or batch conflict detected!");
-      }
-
-      if (
-        staffConflict.data?.conflict &&
-        staffConflict.data?.conflictingTimetableId !== formData.timetableId
-      ) {
-        toast.error(
-          "Staff conflict detected! This staff member is already scheduled."
-        );
-      }
-
-      if (
-        locationConflict.data?.conflict &&
-        locationConflict.data?.conflictingTimetableId !== formData.timetableId
-      ) {
-        toast.error(
-          "Location conflict detected! This room is already occupied."
-        );
-      }
-
-      if (
-        (divisionConflict.data?.conflict &&
-          divisionConflict.data?.conflictingTimetableId !==
-            formData.timetableId) ||
-        (staffConflict.data?.conflict &&
-          staffConflict.data?.conflictingTimetableId !==
-            formData.timetableId) ||
-        (locationConflict.data?.conflict &&
-          locationConflict.data?.conflictingTimetableId !==
-            formData.timetableId)
-      ) {
-        return; // Stop if conflicts are found (excluding self)
-      }
-
       // Proceed with the update if no conflicts
-      await axios.put(`${API_BASE_URL}/Timetable/update`, timetableData);
+      await axios.put(`${API_BASE_URL}/Timetable/update`, timetableData, {
+        headers: {
+          Authorization: `Bearer ${auth?.token}`,
+        },
+      });
       toast.success("Timetable updated successfully!");
       onUpdateSuccess?.();
+      refetchTimetable();
       onClose();
     } catch (error) {
       console.error("Update error:", error.response?.data || error.message);
@@ -568,9 +730,11 @@ const UpdateTimetableModal = ({
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  timeSlots?.find(
-                    (t) => t.timeSlotId === formData.timeSlotId
-                  ) || null
+                  availableTimeSlots?.length
+                    ? availableTimeSlots.find(
+                        (slot) => slot.timeSlotId === formData?.timeSlotId
+                      ) || null
+                    : null
                 }
                 onChange={(e, newValue) =>
                   handleChange(
@@ -578,16 +742,21 @@ const UpdateTimetableModal = ({
                     newValue ? newValue.timeSlotId : null
                   )
                 }
-                options={Array.isArray(timeSlots) ? timeSlots : []} // Ensure it's always an array
+                options={
+                  Array.isArray(availableTimeSlots) ? availableTimeSlots : []
+                }
                 getOptionLabel={(option) =>
-                  option
-                    ? `${option.timeslot}:- ${option.fromTime}-${option.toTime}`
+                  option?.timeslot
+                    ? `${option.timeslot}: ${option.fromTime}-${option.toTime}`
                     : ""
-                } // Properly format the label
+                }
                 renderInput={(params) => (
-                  <TextField {...params} label="Select TimeSlot" />
+                  <TextField {...params} label="Select TimeSlot" fullWidth />
                 )}
-                disabled={!formData.programId} // Disable if no program is selected
+                disabled={
+                  !formData?.programId ||
+                  (isBatchEnabled ? !formData?.batchId : !formData?.divisionId)
+                }
               />
             </Box>
 
@@ -595,8 +764,8 @@ const UpdateTimetableModal = ({
             <Box marginY={2}>
               <Autocomplete
                 value={
-                  locations?.find(
-                    (l) => l.locationId === formData.locationId
+                  availableLocations?.find(
+                    (location) => location.locationId === formData?.locationId
                   ) || null
                 }
                 onChange={(e, newValue) =>
@@ -605,12 +774,12 @@ const UpdateTimetableModal = ({
                     newValue ? newValue.locationId : null
                   )
                 }
-                options={Array.isArray(locations) ? locations : []} // Ensure it's always an array
-                getOptionLabel={(option) => option?.locationName ?? ""} // ✅ Use correct property names
+                options={availableLocations || []}
+                getOptionLabel={(option) => option?.locationName ?? ""}
                 renderInput={(params) => (
-                  <TextField {...params} label="Select Location" />
+                  <TextField {...params} label="Select Location" fullWidth />
                 )}
-                disabled={!formData.departmentId1} // Disable if no department is selected
+                disabled={!formData?.departmentId1 || !formData?.timeSlotId}
               />
             </Box>
 
@@ -670,18 +839,19 @@ const UpdateTimetableModal = ({
               <Box marginY={2}>
                 <Autocomplete
                   value={
-                    staffMembers?.find((s) => s.staffId === formData.staffId) ||
-                    null
+                    availableTeachers?.find(
+                      (teacher) => teacher.staffId === formData?.staffId
+                    ) || null
                   }
                   onChange={(e, newValue) =>
                     handleChange("staffId", newValue ? newValue.staffId : null)
                   }
-                  options={Array.isArray(staffMembers) ? staffMembers : []} // ✅ Ensure it's always an array
-                  getOptionLabel={(option) => option?.fullName ?? ""} // ✅ Use correct property names
+                  options={availableTeachers || []}
+                  getOptionLabel={(option) => option?.fullName ?? ""}
                   renderInput={(params) => (
-                    <TextField {...params} label="Select Teacher" />
+                    <TextField {...params} label="Select Teacher" fullWidth />
                   )}
-                  disabled={!formData.departmentId2} // ✅ Disable if no faculty is selected
+                  disabled={!formData?.departmentId2 || !formData?.timeSlotId}
                 />
               </Box>
             </Box>

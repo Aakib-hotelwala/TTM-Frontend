@@ -7,24 +7,13 @@ import universityLogo from "../../assets/Image.png";
 import { ClipLoader } from "react-spinners";
 
 const Login = () => {
-  // Access the login function from AuthContext to store user data after successful login
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
   const [credentials, setCredentials] = useState({ email: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Role mapping for navigation
-  const roleMap = {
-    1: "admin",
-    2: "dean",
-    3: "hod",
-    4: "ttm", // Highest priority
-    5: "teacher",
-    6: "student",
-  };
-
   // Define role priority order
-  const rolePriority = [4, 1, 2, 3, 5, 6];
+  const rolePriority = ["TTM", "Admin", "Dean", "HOD", "Teacher", "Student"];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,30 +26,37 @@ const Login = () => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      // Destructure the response data
-      const { token, userId, facultyId, departmentId, roleIds } = response.data;
+      const {
+        token,
+        userId,
+        fullName,
+        facultyId,
+        departmentId,
+        roleIds,
+        roleNames,
+      } = response.data;
 
       // Find the highest-priority role the user has
-      const prioritizedRoleId = rolePriority.find((roleId) =>
-        roleIds.includes(roleId)
+      const prioritizedRole = rolePriority.find((role) =>
+        roleNames.includes(role)
       );
 
-      if (!prioritizedRoleId) {
-        toast.error("Invalid Credentials"); // Show error if no valid role is found
+      if (!prioritizedRole) {
+        toast.error("Invalid Credentials");
         setIsLoading(false);
         return;
       }
-
-      const role = roleMap[prioritizedRoleId]; // Get role name based on role ID
 
       // Save user data to AuthContext
       login({
         token,
         userId,
+        fullName,
         facultyId,
         departmentId,
         roleIds,
-        role,
+        role: prioritizedRole,
+        roleNames,
       });
 
       toast.success("Login successful!");
@@ -69,15 +65,13 @@ const Login = () => {
       setCredentials({ email: "", password: "" });
 
       // Redirect to role-based homepage
-      navigate(`/${role}-homepage`, { replace: true });
+      navigate(`/${prioritizedRole.toLowerCase()}-homepage`, { replace: true });
     } catch (error) {
       console.error("Login error:", error);
 
       if (error.response) {
         const { status, data } = error.response;
-
-        // Handle specific status codes
-        if (status >= 400 || status < 500) {
+        if (status >= 400 && status < 500) {
           toast.error("Invalid Credentials. Please try again.");
         } else if (status === 500) {
           toast.error("Server error. Please try again later.");

@@ -3,8 +3,10 @@ import axios from "axios";
 import Timetable from "../components/Timetable";
 import { AuthContext } from "../../context/AuthContext";
 
-const ViewTimetableTeacher = () => {
+const ViewTimetableDean = () => {
   const { auth } = useContext(AuthContext);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [programs, setPrograms] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [classes, setClasses] = useState([]);
@@ -17,8 +19,24 @@ const ViewTimetableTeacher = () => {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
 
   useEffect(() => {
-    fetchPrograms();
+    fetchDepartments();
   }, []);
+
+  useEffect(() => {
+    if (selectedDepartment?.departmentId) {
+      fetchPrograms(selectedDepartment.departmentId);
+    } else {
+      setPrograms([]);
+      setSelectedProgram(null);
+      setSelectedClass(null);
+      setSelectedDivision(null);
+      setSelectedLocation(null);
+      setSelectedTeacher(null);
+      setTimetable([]);
+      setDays([]);
+      setTimeSlots([]);
+    }
+  }, [selectedDepartment]);
 
   useEffect(() => {
     if (selectedProgram) {
@@ -44,10 +62,31 @@ const ViewTimetableTeacher = () => {
     }
   }, [selectedClass]);
 
-  const fetchPrograms = async () => {
+  const fetchDepartments = async () => {
     try {
       const response = await axios.get(
-        `https://localhost:7073/api/Academic/programs?departmentId=${auth.departmentId}`,
+        `https://localhost:7073/api/Academic/departments?facultyId=${auth.facultyId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${auth?.token}`,
+          },
+        }
+      );
+      setDepartments(response.data);
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+    }
+  };
+
+  const fetchPrograms = async (departmentId) => {
+    if (!departmentId) {
+      console.error("Missing departmentId:", departmentId);
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://localhost:7073/api/Academic/programs?departmentId=${departmentId}`,
         {
           headers: {
             Authorization: `Bearer ${auth?.token}`,
@@ -102,7 +141,6 @@ const ViewTimetableTeacher = () => {
           },
         }
       );
-      console.log(response.data);
       setDays(response.data);
     } catch (error) {
       console.error("Error fetching days:", error);
@@ -183,11 +221,14 @@ const ViewTimetableTeacher = () => {
 
   return (
     <Timetable
+      departments={departments}
       programs={programs}
       days={days}
       timeSlots={timeSlots}
       filteredTimetable={filteredTimetable}
       uniqueValues={uniqueValues}
+      selectedDepartment={selectedDepartment}
+      handleDepartmentChange={setSelectedDepartment}
       selectedProgram={selectedProgram}
       handleProgramChange={setSelectedProgram}
       selectedClass={selectedClass}
@@ -196,8 +237,9 @@ const ViewTimetableTeacher = () => {
       selectedTeacher={selectedTeacher}
       handleFilterChange={handleFilterChange}
       handleClassChange={handleClassChange}
+      role={auth.role}
     />
   );
 };
 
-export default ViewTimetableTeacher;
+export default ViewTimetableDean;

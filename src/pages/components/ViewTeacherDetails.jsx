@@ -21,104 +21,106 @@ import { AuthContext } from "../../context/AuthContext";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-const ViewLocationDetailsTTM = () => {
+const ViewTeacherDetails = () => {
   const { auth } = useContext(AuthContext);
-  const [locationData, setLocationData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [staffData, setStaffData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({
-    key: "locationName",
+    key: "fullName",
     direction: "asc",
   });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
-
-  // Filters
-  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [selectedFaculty, setSelectedFaculty] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   useEffect(() => {
-    const fetchLocationDetails = async () => {
+    const fetchStaffDetails = async () => {
       try {
         const response = await axios.get(
-          "https://localhost:7073/api/Location/location_details",
+          "https://localhost:7073/api/Academic/staff_details",
           {
             headers: {
               Authorization: `Bearer ${auth?.token}`,
             },
           }
         );
-        setLocationData(response.data);
+        setStaffData(response.data);
       } catch (error) {
-        console.error("Error fetching location details:", error);
+        console.error("Error fetching staff details:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchLocationDetails();
+    fetchStaffDetails();
   }, [auth]);
 
-  // Options for filters
-  const locationOptions = [
-    ...new Set(locationData.map((loc) => loc.locationName)),
-  ];
+  const teacherOptions = [...new Set(staffData.map((staff) => staff.fullName))];
   const facultyOptions = [
-    ...new Set(locationData.map((loc) => loc.facultyName)),
+    ...new Set(staffData.map((staff) => staff.facultyName)),
   ];
   const departmentOptions = [
-    ...new Set(locationData.map((loc) => loc.departmentName)),
+    ...new Set(staffData.map((staff) => staff.departmentName)),
   ];
-  const buildingOptions = [
-    ...new Set(locationData.map((loc) => loc.buildingName)),
+  const subjectOptions = [
+    ...new Set(
+      staffData.flatMap((staff) =>
+        staff.subjects ? staff.subjects.split(",").map((s) => s.trim()) : []
+      )
+    ),
   ];
 
   // Filter logic
   useEffect(() => {
-    let filtered = locationData;
+    let filtered = staffData;
 
-    if (selectedLocation) {
-      filtered = filtered.filter(
-        (loc) => loc.locationName === selectedLocation
-      );
+    if (selectedTeacher) {
+      filtered = filtered.filter((staff) => staff.fullName === selectedTeacher);
     }
     if (selectedFaculty) {
-      filtered = filtered.filter((loc) => loc.facultyName === selectedFaculty);
+      filtered = filtered.filter(
+        (staff) => staff.facultyName === selectedFaculty
+      );
     }
     if (selectedDepartment) {
       filtered = filtered.filter(
-        (loc) => loc.departmentName === selectedDepartment
+        (staff) => staff.departmentName === selectedDepartment
       );
     }
-    if (selectedBuilding) {
-      filtered = filtered.filter(
-        (loc) => loc.buildingName === selectedBuilding
+    if (selectedSubject) {
+      filtered = filtered.filter((staff) =>
+        staff.subjects
+          ?.split(",")
+          .map((s) => s.trim())
+          .includes(selectedSubject)
       );
     }
 
     setFilteredData(filtered);
     setPage(0); // Reset pagination on filter change
   }, [
-    selectedLocation,
+    selectedTeacher,
     selectedFaculty,
     selectedDepartment,
-    selectedBuilding,
-    locationData,
+    selectedSubject,
+    staffData,
   ]);
 
   const handleSort = (key) => {
     const isAsc = sortConfig.key === key && sortConfig.direction === "asc";
     setSortConfig({ key, direction: isAsc ? "desc" : "asc" });
 
-    const sortedData = [...locationData].sort((a, b) => {
+    const sortedData = [...staffData].sort((a, b) => {
       if (a[key] < b[key]) return isAsc ? -1 : 1;
       if (a[key] > b[key]) return isAsc ? 1 : -1;
       return 0;
     });
 
-    setLocationData(sortedData);
+    setStaffData(sortedData);
   };
 
   const handleChangePage = (_, newPage) => setPage(newPage);
@@ -129,41 +131,50 @@ const ViewLocationDetailsTTM = () => {
   };
 
   const clearFilters = () => {
-    setSelectedLocation(null);
-    setSelectedFaculty(null);
+    setSelectedTeacher(null);
     setSelectedDepartment(null);
-    setSelectedBuilding(null);
+    setSelectedFaculty(null);
+    setSelectedSubject(null);
   };
 
   const columns = [
-    { key: "locationCode", label: "Location Code" },
-    { key: "locationName", label: "Location" },
-    { key: "buildingName", label: "Building" },
-    { key: "floorNo", label: "Floor No" },
-    { key: "description", label: "Description" },
-    { key: "capacity", label: "Capacity" },
+    { key: "fullName", label: "Full Name" },
+    { key: "designation", label: "Designation" },
+    { key: "qualification", label: "Qualification" },
+    { key: "phoneNumber", label: "Phone No." },
+    { key: "email", label: "Email" },
     { key: "facultyName", label: "Faculty" },
     { key: "departmentName", label: "Department" },
+    { key: "subjects", label: "Subjects" },
   ];
+
+  // Remove duplicate subjects
+  const getUniqueSubjects = (subjects) => {
+    if (!subjects) return "N/A";
+    const subjectList = subjects.split(",").map((s) => s.trim());
+    const uniqueSubjects = [...new Set(subjectList)];
+    return uniqueSubjects.join(", ");
+  };
 
   const downloadExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
-      filteredData.map((loc, index) => ({
+      filteredData.map((staff, index) => ({
         "Sr. No": index + 1,
-        "Location Code": loc.locationCode,
-        Location: loc.locationName,
-        Building: loc.buildingName,
-        "Floor No": loc.floorNo,
-        Description: loc.description,
-        Capacity: loc.capacity,
-        Faculty: loc.facultyName,
-        Department: loc.departmentName,
+        "Full Name": staff.fullName || "N/A",
+        Designation: staff.designation || "N/A",
+        Qualification: staff.qualification || "N/A",
+        "Phone No.": staff.phoneNumber || "N/A",
+        Email: staff.email || "N/A",
+        Faculty: staff.facultyName || "N/A",
+        Department: staff.departmentName || "N/A",
+        Subjects: getUniqueSubjects(staff.subjects),
       }))
     );
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Location Details");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Staff Details");
 
+    // Generate and trigger download
     const excelBuffer = XLSX.write(workbook, {
       bookType: "xlsx",
       type: "array",
@@ -171,13 +182,13 @@ const ViewLocationDetailsTTM = () => {
     const data = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(data, "Location_Details.xlsx");
+    saveAs(data, "Staff_Details.xlsx");
   };
 
   return (
     <div>
       <Typography variant="h5" fontWeight="bold" mb={1}>
-        Location Details
+        Staff Details
       </Typography>
       <Box
         display="flex"
@@ -195,10 +206,10 @@ const ViewLocationDetailsTTM = () => {
           </Button>
           {[
             {
-              label: "Select Location",
-              value: selectedLocation,
-              setter: setSelectedLocation,
-              options: locationOptions,
+              label: "Select Teacher",
+              value: selectedTeacher,
+              setter: setSelectedTeacher,
+              options: teacherOptions,
             },
             {
               label: "Select Faculty",
@@ -213,17 +224,17 @@ const ViewLocationDetailsTTM = () => {
               options: departmentOptions,
             },
             {
-              label: "Select Building",
-              value: selectedBuilding,
-              setter: setSelectedBuilding,
-              options: buildingOptions,
+              label: "Select Subject",
+              value: selectedSubject,
+              setter: setSelectedSubject,
+              options: subjectOptions,
             },
           ].map(({ label, value, setter, options }) => (
             <Autocomplete
               key={label}
               options={options}
               value={value}
-              onChange={(_, newValue) => setter(newValue)}
+              onChange={(event, newValue) => setter(newValue)}
               renderInput={(params) => (
                 <TextField {...params} label={label} variant="outlined" />
               )}
@@ -239,7 +250,6 @@ const ViewLocationDetailsTTM = () => {
           Download
         </Button>
       </Box>
-
       {loading ? (
         <Box
           display="flex"
@@ -251,12 +261,12 @@ const ViewLocationDetailsTTM = () => {
         </Box>
       ) : (
         <TableContainer component={Paper}>
-          <Table>
+          <Table sx={{ minWidth: 800 }}>
             <TableHead>
               <TableRow>
-                <TableCell>Sr. No</TableCell>
+                <TableCell align="center">Sr. No</TableCell>
                 {columns.map((col) => (
-                  <TableCell key={col.key}>
+                  <TableCell key={col.key} align="center">
                     <TableSortLabel
                       active={sortConfig.key === col.key}
                       direction={
@@ -275,14 +285,17 @@ const ViewLocationDetailsTTM = () => {
             <TableBody>
               {filteredData
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((loc, index) => (
-                  <TableRow key={loc.locationId}>
+                .map((staff, index) => (
+                  <TableRow key={staff.staffId}>
                     <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                    {columns.map((col) => (
-                      <TableCell key={col.key}>
-                        {loc[col.key] || "N/A"}
-                      </TableCell>
-                    ))}
+                    <TableCell>{staff.fullName || "N/A"}</TableCell>
+                    <TableCell>{staff.designation || "N/A"}</TableCell>
+                    <TableCell>{staff.qualification || "N/A"}</TableCell>
+                    <TableCell>{staff.phoneNumber || "N/A"}</TableCell>
+                    <TableCell>{staff.email || "N/A"}</TableCell>
+                    <TableCell>{staff.facultyName || "N/A"}</TableCell>
+                    <TableCell>{staff.departmentName || "N/A"}</TableCell>
+                    <TableCell>{getUniqueSubjects(staff.subjects)}</TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -302,4 +315,4 @@ const ViewLocationDetailsTTM = () => {
   );
 };
 
-export default ViewLocationDetailsTTM;
+export default ViewTeacherDetails;

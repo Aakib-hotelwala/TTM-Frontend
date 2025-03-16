@@ -3,7 +3,7 @@ import axios from "axios";
 import Timetable from "../components/Timetable";
 import { AuthContext } from "../../context/AuthContext";
 
-const ViewTimetableTeacher = () => {
+const ViewTimetableHOD = () => {
   const { auth } = useContext(AuthContext);
   const [programs, setPrograms] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState(null);
@@ -200,4 +200,4 @@ const ViewTimetableTeacher = () => {
   );
 };
 
-export default ViewTimetableTeacher;
+export default ViewTimetableHOD;

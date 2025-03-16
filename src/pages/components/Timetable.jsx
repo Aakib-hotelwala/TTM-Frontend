@@ -21,6 +21,7 @@ import universityLogo from "../../assets/Image.png";
 const Timetable = ({
   title = "Timetable",
   programs = [],
+  departments = [],
   days = [],
   timeSlots = [],
   filteredTimetable = [],
@@ -29,60 +30,102 @@ const Timetable = ({
   selectedDivision,
   selectedLocation,
   selectedTeacher,
+  selectedDepartment,
+  role,
+  handleDepartmentChange,
   handleProgramChange,
   handleClassChange,
   handleFilterChange,
   uniqueValues,
 }) => {
   const tableRef = useRef(null);
-  const { auth } = useContext(AuthContext);
-  const [faculties, setFaculties] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [facultyName, setFacultyName] = useState("");
   const [departmentName, setDepartmentName] = useState("");
+  const { auth } = useContext(AuthContext);
+
+  // useEffect(() => {
+  //   const fetchFacultiesAndDepartments = async () => {
+  //     try {
+  //       const facultyResponse = await fetch(
+  //         "https://localhost:7073/api/Academic/Faculties",
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${auth?.token}`,
+  //           },
+  //         }
+  //       );
+  //       const facultyData = await facultyResponse.json();
+
+  //       // Use a sample facultyId (adjust as needed or pull from user input)
+  //       const facultyId =
+  //         facultyData.length > 0 ? facultyData[0].facultyId : null;
+
+  //       const faculty = facultyData.find(
+  //         (faculty) => faculty.facultyId === facultyId
+  //       );
+
+  //       if (facultyId) {
+  //         const departmentResponse = await fetch(
+  //           `https://localhost:7073/api/Academic/departments?facultyId=${facultyId}`,
+  //           {
+  //             headers: {
+  //               Authorization: `Bearer ${auth?.token}`,
+  //             },
+  //           }
+  //         );
+  //         const departmentData = await departmentResponse.json();
+
+  //         const departmentId =
+  //           departmentData.length > 0 ? departmentData[0].departmentId : null;
+  //         const department = departmentData.find(
+  //           (dept) => dept.departmentId === departmentId
+  //         );
+
+  //         setFacultyName(faculty ? faculty.facultyName : "Unknown Faculty");
+  //         setDepartmentName(
+  //           department ? department.departmentName : "Unknown Department"
+  //         );
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching data:", error);
+  //     }
+  //   };
+
+  //   fetchFacultiesAndDepartments();
+  // }, []);
 
   useEffect(() => {
-    const fetchFacultiesAndDepartments = async () => {
+    const fetchTimetableDetails = async () => {
       try {
-        const facultyResponse = await fetch(
-          "https://localhost:7073/api/Academic/Faculties"
-        );
-        const facultyData = await facultyResponse.json();
-        setFaculties(facultyData);
-
-        // Use a sample facultyId (adjust as needed or pull from user input)
-        const facultyId =
-          facultyData.length > 0 ? facultyData[0].facultyId : null;
-
-        const faculty = facultyData.find(
-          (faculty) => faculty.facultyId === facultyId
+        // Fetch timetable details
+        const timetableResponse = await fetch(
+          `https://localhost:7073/api/Timetable/getTimetable?userId=${auth?.userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${auth?.token}`,
+            },
+          }
         );
 
-        if (facultyId) {
-          const departmentResponse = await fetch(
-            `https://localhost:7073/api/Academic/departments?facultyId=${facultyId}`
-          );
-          const departmentData = await departmentResponse.json();
-          setDepartments(departmentData);
+        if (!timetableResponse.ok) {
+          throw new Error("Failed to fetch timetable data");
+        }
 
-          const departmentId =
-            departmentData.length > 0 ? departmentData[0].departmentId : null;
-          const department = departmentData.find(
-            (dept) => dept.departmentId === departmentId
-          );
+        const timetableData = await timetableResponse.json();
 
-          setFacultyName(faculty ? faculty.facultyName : "Unknown Faculty");
-          setDepartmentName(
-            department ? department.departmentName : "Unknown Department"
-          );
+        if (timetableData && timetableData.length > 0) {
+          const { facultyName, departmentName } = timetableData[0];
+
+          setFacultyName(facultyName || "Unknown Faculty");
+          setDepartmentName(departmentName || "Unknown Department");
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching timetable data:", error);
       }
     };
 
-    fetchFacultiesAndDepartments();
-  }, []);
+    fetchTimetableDetails();
+  }, [auth?.userId, auth?.token]);
 
   const downloadPDF = async () => {
     try {
@@ -94,7 +137,7 @@ const Timetable = ({
 
       logo.onload = async () => {
         // Add logo
-        pdf.addImage(logo, "PNG", 75, 10, 50, 30);
+        pdf.addImage(logo, "PNG", 90, 10, 30, 30);
 
         // Horizontal line under the title
         pdf.setDrawColor(0);
@@ -106,13 +149,13 @@ const Timetable = ({
         pdf.setFont("helvetica", "normal");
 
         const info = [
-          { label: "Faculty", value: facultyName || "N/A" },
-          { label: "Department", value: departmentName || "N/A" },
-          { label: "Program", value: selectedProgram?.programName || "N/A" },
-          { label: "Division", value: selectedDivision || "N/A" },
-          { label: "Teacher", value: selectedTeacher || "N/A" },
-          { label: "Location", value: selectedLocation || "N/A" },
-        ];
+          { label: "Faculty", value: facultyName },
+          { label: "Department", value: departmentName },
+          { label: "Program", value: selectedProgram?.programName },
+          { label: "Division", value: selectedDivision },
+          { label: "Teacher", value: selectedTeacher },
+          { label: "Location", value: selectedLocation },
+        ].filter((item) => item.value && item.value !== "N/A"); // Remove "N/A" fields
 
         let startY = 50;
 
@@ -134,9 +177,9 @@ const Timetable = ({
 
         // Capture timetable image
         const canvas = await html2canvas(tableRef.current, {
-          backgroundColor: null, // Removes background (prevents dark shadows)
-          scale: 2, // Higher quality capture
-          removeContainer: true, // Removes hidden elements
+          backgroundColor: null,
+          scale: 2,
+          removeContainer: true,
         });
 
         const imgData = canvas.toDataURL("image/png");
@@ -175,6 +218,27 @@ const Timetable = ({
         {title}
       </Typography>
 
+      {role?.toLowerCase() === "dean" && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: "20px",
+          }}
+        >
+          <Autocomplete
+            sx={{ width: 550 }}
+            options={departments}
+            getOptionLabel={(option) => option.departmentName || ""}
+            value={selectedDepartment}
+            onChange={(e, newValue) => handleDepartmentChange(newValue)}
+            renderInput={(params) => (
+              <TextField {...params} label="Select Department" fullWidth />
+            )}
+          />
+        </div>
+      )}
+
       <div
         style={{
           display: "flex",
@@ -191,6 +255,7 @@ const Timetable = ({
           renderInput={(params) => (
             <TextField {...params} label="Select Program" fullWidth />
           )}
+          disabled={!selectedDepartment && role?.toLowerCase() === "dean"}
         />
       </div>
 
@@ -258,31 +323,19 @@ const Timetable = ({
       <div ref={tableRef}>
         {(selectedClass || selectedLocation || selectedTeacher) &&
           filteredTimetable.length > 0 && (
-            <TableContainer component={Paper} style={{ marginTop: "30px" }}>
-              <Table
-                size="small"
-                style={{
-                  width: "100%",
-                  tableLayout: "fixed",
-                  borderCollapse: "collapse",
-                }}
-              >
-                <TableHead>
-                  <TableRow>
-                    <TableCell
-                      style={{
-                        textAlign: "center",
-                        fontWeight: "bold",
-                        width: "150px",
-                        height: "50px",
-                        border: "1px solid #ccc",
-                      }}
-                    >
-                      Time
-                    </TableCell>
-                    {days.map((day) => (
+            <>
+              <TableContainer component={Paper} style={{ marginTop: "30px" }}>
+                <Table
+                  size="small"
+                  style={{
+                    width: "100%",
+                    tableLayout: "fixed",
+                    borderCollapse: "collapse",
+                  }}
+                >
+                  <TableHead>
+                    <TableRow>
                       <TableCell
-                        key={day.dayId}
                         style={{
                           textAlign: "center",
                           fontWeight: "bold",
@@ -291,141 +344,281 @@ const Timetable = ({
                           border: "1px solid #ccc",
                         }}
                       >
-                        {day.dayName}
+                        Time
                       </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {timeSlots.map((slot) => (
-                    <TableRow key={slot.timeSlotId}>
-                      <TableCell
-                        style={{
-                          textAlign: "center",
-                          fontWeight: "bold",
-                          width: "150px",
-                          height: "60px",
-                          border: "1px solid #ccc",
-                        }}
-                      >
-                        {slot.fromTime} - {slot.toTime}
-                      </TableCell>
-                      {days.map((day) => {
-                        const entry = filteredTimetable.find(
-                          (t) =>
-                            t.dayId === day.dayId &&
-                            t.timeSlotId === slot.timeSlotId
-                        );
+                      {days.map((day) => (
+                        <TableCell
+                          key={day.dayId}
+                          style={{
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            width: "150px",
+                            height: "50px",
+                            border: "1px solid #ccc",
+                          }}
+                        >
+                          {day.dayName}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {timeSlots.map((slot) => (
+                      <TableRow key={slot.timeSlotId}>
+                        <TableCell
+                          style={{
+                            textAlign: "center",
+                            fontWeight: "bold",
+                            width: "150px",
+                            height: "60px",
+                            border: "1px solid #ccc",
+                          }}
+                        >
+                          {slot.fromTime} - {slot.toTime}
+                        </TableCell>
+                        {days.map((day) => {
+                          const entries = filteredTimetable.filter(
+                            (t) =>
+                              t.dayId === day.dayId &&
+                              t.timeSlotId === slot.timeSlotId
+                          );
 
-                        const renderContent = () => {
-                          if (!entry) return "-";
+                          const renderContent = () => {
+                            if (entries.length === 0) return "-";
+
+                            return entries.map((entry, index) => (
+                              <div key={index}>
+                                {selectedDivision && (
+                                  <>
+                                    {entry.subjectName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#4caf50" }}
+                                      >
+                                        {entry.subjectName}
+                                      </Typography>
+                                    )}
+                                    {entry.staffName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#ff0000" }}
+                                      >
+                                        {entry.staffName}
+                                      </Typography>
+                                    )}
+                                    {entry.batchName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#cc0066" }}
+                                      >
+                                        {entry.batchName}
+                                      </Typography>
+                                    )}
+                                  </>
+                                )}
+                                {selectedLocation && (
+                                  <>
+                                    {entry.subjectName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#4caf50" }}
+                                      >
+                                        {entry.subjectName}
+                                      </Typography>
+                                    )}
+                                    {entry.academicClassName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#2196f3" }}
+                                      >
+                                        {entry.academicClassName}
+                                      </Typography>
+                                    )}
+                                    {entry.divisionName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#3f51b5" }}
+                                      >
+                                        {`Division-${entry.divisionName}`}
+                                      </Typography>
+                                    )}
+                                    {entry.batchName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#cc0066" }}
+                                      >
+                                        {entry.batchName}
+                                      </Typography>
+                                    )}
+                                    {entry.staffName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#ff0000" }}
+                                      >
+                                        {entry.staffName}
+                                      </Typography>
+                                    )}
+                                  </>
+                                )}
+                                {selectedTeacher && (
+                                  <>
+                                    {entry.subjectName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#4caf50" }}
+                                      >
+                                        {entry.subjectName}
+                                      </Typography>
+                                    )}
+                                    {entry.academicClassName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#2196f3" }}
+                                      >
+                                        {entry.academicClassName}
+                                      </Typography>
+                                    )}
+                                    {entry.divisionName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#3f51b5" }}
+                                      >
+                                        {`Division-${entry.divisionName}`}
+                                      </Typography>
+                                    )}
+                                    {entry.batchName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#cc0066" }}
+                                      >
+                                        {entry.batchName}
+                                      </Typography>
+                                    )}
+                                    {entry.locationName && (
+                                      <Typography
+                                        variant="body2"
+                                        style={{ color: "#ff9800" }}
+                                      >
+                                        {entry.locationName}
+                                      </Typography>
+                                    )}
+                                  </>
+                                )}
+                                {selectedDivision && entry.locationName && (
+                                  <Typography
+                                    variant="body2"
+                                    style={{ color: "#ff9800" }}
+                                  >
+                                    {entry.locationName}
+                                  </Typography>
+                                )}
+
+                                {index < entries.length - 1 && (
+                                  <hr style={{ margin: "2px 0" }} />
+                                )}
+                              </div>
+                            ));
+                          };
 
                           return (
-                            <>
-                              {selectedDivision && (
-                                <>
-                                  {entry.subjectName && (
-                                    <Typography variant="body2" color="primary">
-                                      {entry.subjectName}
-                                    </Typography>
-                                  )}
-                                  {entry.staffName && (
-                                    <Typography variant="body2" color="error">
-                                      {entry.staffName}
-                                    </Typography>
-                                  )}
-                                </>
-                              )}
-                              {selectedLocation && (
-                                <>
-                                  {entry.subjectName && (
-                                    <Typography variant="body2" color="error">
-                                      {entry.subjectName}
-                                    </Typography>
-                                  )}
-                                  {entry.academicClassName && (
-                                    <Typography
-                                      variant="body2"
-                                      color="secondary"
-                                    >
-                                      {entry.academicClassName}
-                                    </Typography>
-                                  )}
-                                  {entry.divisionName && (
-                                    <Typography variant="body2" color="primary">
-                                      {`Division-${entry.divisionName}`}
-                                    </Typography>
-                                  )}
-                                  {entry.staffName && (
-                                    <Typography variant="body2" color="error">
-                                      {entry.staffName}
-                                    </Typography>
-                                  )}
-                                </>
-                              )}
-                              {selectedTeacher && (
-                                <>
-                                  {entry.subjectName && (
-                                    <Typography variant="body2" color="error">
-                                      {entry.subjectName}
-                                    </Typography>
-                                  )}
-                                  {entry.academicClassName && (
-                                    <Typography
-                                      variant="body2"
-                                      color="secondary"
-                                    >
-                                      {entry.academicClassName}
-                                    </Typography>
-                                  )}
-                                  {entry.divisionName && (
-                                    <Typography variant="body2" color="primary">
-                                      {`Division-${entry.divisionName}`}
-                                    </Typography>
-                                  )}
-                                  {entry.locationName && (
-                                    <Typography variant="body2" color="error">
-                                      {entry.locationName}
-                                    </Typography>
-                                  )}
-                                </>
-                              )}
-                              {selectedDivision && entry.locationName && (
-                                <Typography variant="body2" color="secondary">
-                                  {entry.locationName}
-                                </Typography>
-                              )}
-                            </>
+                            <TableCell
+                              key={day.dayId}
+                              style={{
+                                textAlign: "center",
+                                width: "150px",
+                                height: "60px",
+                                border: "1px solid #ccc",
+                                wordWrap: "break-word",
+                                whiteSpace: "pre-line",
+                                padding: "8px",
+                              }}
+                            >
+                              {renderContent()}
+                            </TableCell>
                           );
-                        };
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
-                        return (
-                          <TableCell
-                            key={day.dayId}
-                            style={{
-                              textAlign: "center",
-                              width: "150px",
-                              height: "60px",
-                              border: "1px solid #ccc",
-                              wordWrap: "break-word",
-                              whiteSpace: "pre-line",
-                              padding: "8px",
-                            }}
-                          >
-                            {renderContent()}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+              {/* Color legend */}
+              <div
+                style={{
+                  marginTop: "20px",
+                  padding: "10px",
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#4caf50",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  SUBJECT
+                </Typography>
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#2196f3",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  CLASS
+                </Typography>
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#3f51b5",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  DIVISION
+                </Typography>
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#cc0066",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  BATCH
+                </Typography>
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#ff9800",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  LOCATION
+                </Typography>
+                <Typography
+                  variant="body1"
+                  style={{
+                    backgroundColor: "#ff0000",
+                    color: "white",
+                    padding: "5px 10px",
+                  }}
+                >
+                  TEACHER
+                </Typography>
+              </div>
+            </>
           )}
       </div>
       <Button
         variant="contained"
-        color="primary"
+        className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
         onClick={downloadPDF}
         style={{
           display: "block", // ensures it takes up the full width of its container
