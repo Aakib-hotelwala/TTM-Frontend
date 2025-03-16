@@ -2,15 +2,30 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext";
 
-// SidebarLink component — used to render sidebar links dynamically based on user roles
+// Define role priority order (highest to lowest)
+const rolePriority = ["TTM", "Admin", "Dean", "HOD", "Teacher", "Student"];
+
 const SidebarLink = ({ to, icon: Icon, label, isCollapsed }) => {
   const navigate = useNavigate();
-  const { auth } = useContext(AuthContext); // Access user's role from AuthContext
+  const { auth } = useContext(AuthContext); // Access user's roles from AuthContext
   const location = useLocation(); // Access current route
 
-  // Determine the base path based on the user's role
+  // Make sure auth.role is always in lowercase for comparison
+  const currentRole = auth.role?.toLowerCase(); // The selected role
+
+  // Ensure roleNames is defined and prioritize roles
+  const prioritizedRole = rolePriority.find((role) =>
+    auth.roleNames?.includes(role)
+  );
+
+  // Use the currentRole if it's valid, otherwise fall back to prioritizedRole
+  const selectedRole = rolePriority.includes(auth.role)
+    ? auth.role.toLowerCase() // Use logged-in role
+    : prioritizedRole?.toLowerCase(); // Fallback if needed
+
+  // Determine the base path based on the selected role
   const getBasePath = () => {
-    switch (auth.role) {
+    switch (selectedRole) {
       case "admin":
         return "/admin-homepage";
       case "teacher":
