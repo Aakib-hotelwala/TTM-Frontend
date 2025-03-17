@@ -43,56 +43,89 @@ const Timetable = ({
   const [departmentName, setDepartmentName] = useState("");
   const { auth } = useContext(AuthContext);
 
+  // useEffect(() => {
+  //   const fetchFacultiesAndDepartments = async () => {
+  //     try {
+  //       const facultyResponse = await fetch(
+  //         "https://localhost:7073/api/Academic/Faculties",
+  //         {
+  //           headers: {
+  //             Authorization: `Bearer ${auth?.token}`,
+  //           },
+  //         }
+  //       );
+  //       const facultyData = await facultyResponse.json();
+
+  //       // Use a sample facultyId (adjust as needed or pull from user input)
+  //       const facultyId =
+  //         facultyData.length > 0 ? facultyData[0].facultyId : null;
+
+  //       const faculty = facultyData.find(
+  //         (faculty) => faculty.facultyId === facultyId
+  //       );
+
+  //       if (facultyId) {
+  //         const departmentResponse = await fetch(
+  //           `https://localhost:7073/api/Academic/departments?facultyId=${facultyId}`,
+  //           {
+  //             headers: {
+  //               Authorization: `Bearer ${auth?.token}`,
+  //             },
+  //           }
+  //         );
+  //         const departmentData = await departmentResponse.json();
+
+  //         const departmentId =
+  //           departmentData.length > 0 ? departmentData[0].departmentId : null;
+  //         const department = departmentData.find(
+  //           (dept) => dept.departmentId === departmentId
+  //         );
+
+  //         setFacultyName(faculty ? faculty.facultyName : "Unknown Faculty");
+  //         setDepartmentName(
+  //           department ? department.departmentName : "Unknown Department"
+  //         );
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching data:", error);
+  //     }
+  //   };
+
+  //   fetchFacultiesAndDepartments();
+  // }, []);
+
   useEffect(() => {
-    const fetchFacultiesAndDepartments = async () => {
+    const fetchTimetableDetails = async () => {
       try {
-        const facultyResponse = await fetch(
-          "https://localhost:7073/api/Academic/Faculties",
+        // Fetch timetable details
+        const timetableResponse = await fetch(
+          `https://localhost:7073/api/Timetable/getTimetable?userId=${auth?.userId}`,
           {
             headers: {
               Authorization: `Bearer ${auth?.token}`,
             },
           }
         );
-        const facultyData = await facultyResponse.json();
 
-        // Use a sample facultyId (adjust as needed or pull from user input)
-        const facultyId =
-          facultyData.length > 0 ? facultyData[0].facultyId : null;
+        if (!timetableResponse.ok) {
+          throw new Error("Failed to fetch timetable data");
+        }
 
-        const faculty = facultyData.find(
-          (faculty) => faculty.facultyId === facultyId
-        );
+        const timetableData = await timetableResponse.json();
 
-        if (facultyId) {
-          const departmentResponse = await fetch(
-            `https://localhost:7073/api/Academic/departments?facultyId=${facultyId}`,
-            {
-              headers: {
-                Authorization: `Bearer ${auth?.token}`,
-              },
-            }
-          );
-          const departmentData = await departmentResponse.json();
+        if (timetableData && timetableData.length > 0) {
+          const { facultyName, departmentName } = timetableData[0];
 
-          const departmentId =
-            departmentData.length > 0 ? departmentData[0].departmentId : null;
-          const department = departmentData.find(
-            (dept) => dept.departmentId === departmentId
-          );
-
-          setFacultyName(faculty ? faculty.facultyName : "Unknown Faculty");
-          setDepartmentName(
-            department ? department.departmentName : "Unknown Department"
-          );
+          setFacultyName(facultyName || "Unknown Faculty");
+          setDepartmentName(departmentName || "Unknown Department");
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching timetable data:", error);
       }
     };
 
-    fetchFacultiesAndDepartments();
-  }, []);
+    fetchTimetableDetails();
+  }, [auth?.userId, auth?.token]);
 
   const downloadPDF = async () => {
     try {
@@ -185,7 +218,7 @@ const Timetable = ({
         {title}
       </Typography>
 
-      {role === "dean" && (
+      {role?.toLowerCase() === "dean" && (
         <div
           style={{
             display: "flex",
@@ -222,6 +255,7 @@ const Timetable = ({
           renderInput={(params) => (
             <TextField {...params} label="Select Program" fullWidth />
           )}
+          disabled={!selectedDepartment && role?.toLowerCase() === "dean"}
         />
       </div>
 

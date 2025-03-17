@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+import { AuthContext } from "./context/AuthContext";
 import { Login, ProtectedRoute } from "./pages";
 import {
   AdminHomepage,
@@ -37,72 +38,72 @@ import {
 import { StudentHomepage, StudentTimetable } from "./pages/Student";
 
 const App = () => {
+  const { auth } = useContext(AuthContext);
   const [defaultRoute, setDefaultRoute] = useState("");
 
+  // Role-based default routes mapping
+  const roleDefaultRoutes = {
+    Admin: "/admin-homepage/role-management",
+    Teacher: "/teacher-homepage/my-timetable",
+    Student: "/student-homepage/my-timetable",
+    Dean: "/dean-homepage/view-timetable",
+    HOD: "/hod-homepage/view-timetable",
+    TTM: "/ttm-homepage/timetable-management",
+  };
+
   useEffect(() => {
-    const role = localStorage.getItem("role");
-    if (role === "admin") {
-      setDefaultRoute("/admin-homepage/role-management");
-    } else if (role === "teacher") {
-      setDefaultRoute("/teacher-homepage/my-timetable");
-    } else if (role === "student") {
-      setDefaultRoute("/student-homepage/my-timetable");
-    } else if (role === "dean") {
-      setDefaultRoute("/dean-homepage/view-timetable");
-    } else if (role === "hod") {
-      setDefaultRoute("/hod-homepage/view-timetable");
-    } else if (role === "ttm") {
-      setDefaultRoute("/ttm-homepage/timetable-management");
+    // Get the first available role to set as default route
+    if (auth?.roleNames?.length > 0) {
+      const defaultRole = auth.roleNames[0]; // Prioritize the first role
+      setDefaultRoute(roleDefaultRoutes[defaultRole] || "/login");
+    } else {
+      setDefaultRoute("/login");
     }
-  }, []);
+  }, [auth]);
 
   return (
     <Router>
       <Routes>
-        {/* Redirect "/" to Login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* Redirect "/" to login or role-based default route */}
+        <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route path="/login" element={<Login />} />
 
         {/* Role-based Protected Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route path="/admin-homepage/" element={<AdminHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["Admin"]} />}>
+          <Route path="/admin-homepage" element={<AdminHomepage />}>
             <Route path="role-management" element={<RoleManagement />} />
             <Route path="user-management" element={<UserManagement />} />
             <Route path="staff-management" element={<StaffManagement />} />
             <Route path="student-management" element={<StudentManagement />} />
             <Route path="role-allocation" element={<RoleAllocation />} />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="role-management" />} />
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={["teacher"]} />}>
-          <Route path="/teacher-homepage/" element={<TeacherHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["Teacher"]} />}>
+          <Route path="/teacher-homepage" element={<TeacherHomepage />}>
             <Route path="my-timetable" element={<TeacherTimetable />} />
             <Route path="view-timetable" element={<ViewTimetableTeacher />} />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="my-timetable" />} />
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
-          <Route path="/student-homepage/" element={<StudentHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["Student"]} />}>
+          <Route path="/student-homepage" element={<StudentHomepage />}>
             <Route path="my-timetable" element={<StudentTimetable />} />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="my-timetable" />} />
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={["dean"]} />}>
-          <Route path="/dean-homepage/" element={<DeanHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["Dean"]} />}>
+          <Route path="/dean-homepage" element={<DeanHomepage />}>
             <Route path="view-timetable" element={<ViewTimetableDean />} />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="view-timetable" />} />
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={["hod"]} />}>
-          <Route path="/hod-homepage/" element={<HodHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["HOD"]} />}>
+          <Route path="/hod-homepage" element={<HodHomepage />}>
             <Route path="view-timetable" element={<ViewTimetableHOD />} />
             <Route
               path="view-teacher-details"
@@ -112,13 +113,12 @@ const App = () => {
               path="view-location-details"
               element={<ViewLocationDetailsHOD />}
             />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="view-timetable" />} />
           </Route>
         </Route>
 
-        <Route element={<ProtectedRoute allowedRoles={["ttm"]} />}>
-          <Route path="/ttm-homepage/" element={<TtmHomepage />}>
+        <Route element={<ProtectedRoute allowedRoles={["TTM"]} />}>
+          <Route path="/ttm-homepage" element={<TtmHomepage />}>
             <Route path="view-timetable" element={<ViewTimetableTTM />} />
             <Route path="timetable-management" element={<ManageTimetable />} />
             <Route
@@ -133,12 +133,11 @@ const App = () => {
               path="view-location-details"
               element={<ViewLocationDetailsTTM />}
             />
-            {/* Default route (First link) */}
             <Route path="" element={<Navigate to="timetable-management" />} />
           </Route>
         </Route>
 
-        {/* Catch-All Route to Redirect to Login */}
+        {/* Catch-All Route */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </Router>
